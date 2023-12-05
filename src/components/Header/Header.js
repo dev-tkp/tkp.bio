@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import './Header.css'; // Make sure you have the corresponding CSS file
 
 const Header = () => {
   const [showEmail, setShowEmail] = useState(false);
-  const email = "tkpark0504@gmail.com"
+  const email = "your-email@example.com"; // Replace with your actual email
 
   const toggleEmail = () => {
     setShowEmail(!showEmail);
@@ -18,8 +19,11 @@ const Header = () => {
       </div>
       {showEmail && (
         <div className="email-box">
-          {email}
-          <button className="copy-button" onClick={() => navigator.clipboard.writeText(email)}>
+          <span>{email}</span>
+          <button 
+            className="copy-button" 
+            onClick={() => navigator.clipboard.writeText(email)}
+          >
             Copy
           </button>
         </div>
@@ -27,6 +31,5 @@ const Header = () => {
     </header>
   );
 };
-
 
 export default Header;

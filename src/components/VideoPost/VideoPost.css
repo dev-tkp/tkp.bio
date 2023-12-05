@@ -1,14 +1,24 @@
 /* VideoPost.css */
 
 .video-post {
-    margin: 20px 0;
-  }
-  
-  .video-gif {
-    max-width: 100%;
-    height: auto;
-  }
-  
-  .content {
-    /* Your existing styles for the content */
-  }
+  height: 100%; /* Full height of the container */
+  width: 100%; /* Full width of the container */
+  overflow: hidden; /* Hide any overflow */
+  position: relative; /* For positioning the GIF and text content */
+}
+
+.video-gif {
+  max-width: 100%; /* Ensure the GIF is not wider than the container */
+  height: auto; /* Maintain the aspect ratio */
+  object-fit: cover; /* Cover the container fully */
+}
+
+.content {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent background for readability */
+  color: white;
+  padding: 10px;
+  text-align: left;
+}

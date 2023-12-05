@@ -1,35 +1,45 @@
 /* Header.css */
 
 .header {
-    background-color: #333;
-    color: white;
-    padding: 10px 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .header-content {
-    display: flex;
-    align-items: center;
-  }
-  
-  .name {
-    margin-right: 15px;
-    font-size: 1.2em;
-  }
-  
-  .email-toggle {
-    cursor: pointer;
-    background: none;
-    border: none;
-    color: white;
-    font-size: 1em;
-  }
-  
-  .email-box {
-    margin-top: 5px;
-    background-color: #444;
-    padding: 5px;
-    border-radius: 5px;
-  }
+  background-color: #333;
+  color: white;
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+}
+
+.name {
+  margin-right: 15px;
+  font-size: 1.2em;
+}
+
+.email-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1em;
+  cursor: pointer;
+}
+
+.email-box {
+  margin-top: 5px;
+  background-color: #444;
+  padding: 5px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+}
+
+.copy-button {
+  background: none;
+  border: none;
+  color: white;
+  margin-left: 10px;
+  cursor: pointer;
+}

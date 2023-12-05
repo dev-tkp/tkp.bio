@@ -1,26 +1,47 @@
 /* App.css */
 
-/* General styles for the app */
 body, html {
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
+  height: 100%;
+  overflow: hidden; /* Prevent scrolling on the body */
+  font-family: Arial, sans-serif; /* Example font, change as needed */
 }
 
-/* Main app container */
 .app {
-  text-align: center;
+  display: flex;
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  height: 100vh; /* Full height of the viewport */
+  background-color: #f0f0f0; /* Background color for the app */
 }
 
-/* Responsive design */
-@media (min-width: 769px) {
-  .app {
-    /* Enclose the app content in a rounded box for desktop */
-    margin: 0 auto;
-    max-width: 768px;
-    border-radius: 20px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    overflow: hidden;
-    background-color: white;
-  }
+.gif-container {
+  width: 100vw; /* Full width of the viewport */
+  height: 70vh; /* 70% of the viewport height */
+  overflow-y: auto; /* Enable vertical scrolling inside the container */
+  position: relative; /* Needed for absolute positioning of children */
 }
+
+/* Custom scrollbar styling (optional) */
+.gif-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.gif-container::-webkit-scrollbar-thumb {
+  background-color: darkgrey;
+  border-radius: 10px;
+}
+
+.header {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  z-index: 1000; /* Ensure the header is above other content */
+  background-color: #333;
+  color: white;
+  padding: 10px 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Additional global styles can be added as needed */

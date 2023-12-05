@@ -1,5 +1,5 @@
-// VideoPost.js
 import React from 'react';
+import './VideoPost.css'; // Make sure you have the corresponding CSS file
 
 const VideoPost = ({ videoSrc, content }) => {
   return (
