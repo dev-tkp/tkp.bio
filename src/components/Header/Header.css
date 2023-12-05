@@ -1,25 +1,35 @@
+/* Header.css */
+
 .header {
+    background-color: #333;
+    color: white;
+    padding: 10px 15px;
     display: flex;
     justify-content: space-between;
-    padding: 10px;
-    background-color: #f8f8f8;
-    /* Add more styling as needed */
+    align-items: center;
+  }
+  
+  .header-content {
+    display: flex;
+    align-items: center;
   }
   
   .name {
-    /* Styling for the name */
+    margin-right: 15px;
+    font-size: 1.2em;
   }
   
   .email-toggle {
-    /* Styling for the email toggle button */
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1em;
   }
   
   .email-box {
     margin-top: 5px;
-    /* Styling for the email display box */
-  }
-  
-  .copy-button {
-    margin-left: 10px;
-    /* Styling for the copy button */
+    background-color: #444;
+    padding: 5px;
+    border-radius: 5px;
   }

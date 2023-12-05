@@ -2,7 +2,7 @@
 const videoPosts = [
     {
       id: 1,
-      videoSrc: 'videos/sample-video.mp4', // Relative path from public folder
+      videoSrc: 'videos/demo.mp4', // Relative path from public folder
       content: 'This is an example video post.'
     },
     // Add more video posts here
