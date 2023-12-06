@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import './Header.css';
-import upArrowIcon from './up-arrow.svg';
-import downArrowIcon from './down-arrow.svg';
+import upArrowIcon from './down-arrow.svg';
+import downArrowIcon from './up-arrow.svg';
 import copyIcon from './copy-icon.svg';
 
 const getTextWidth = (text, fontSize) => {
