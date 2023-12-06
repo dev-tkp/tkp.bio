@@ -3,8 +3,6 @@
 body, html {
   margin: 0;
   padding: 0;
-  height: 100%;
-  overflow: hidden; /* Prevent scrolling on the body */
   font-family: Arial, sans-serif; /* Example font, change as needed */
 }
 
@@ -12,7 +10,7 @@ body, html {
   display: flex;
   justify-content: center; /* Center horizontally */
   align-items: center; /* Center vertically */
-  height: 100vh; /* Full height of the viewport */
+  min-height: 100vh; /* Minimum height to cover the viewport */
   background-color: #f0f0f0; /* Background color for the app */
 }
 
@@ -34,7 +32,7 @@ body, html {
 }
 
 .header {
-  position: absolute;
+  position: sticky; /* Stick to the top within its parent container */
   top: 0;
   width: 100%;
   z-index: 1000; /* Ensure the header is above other content */

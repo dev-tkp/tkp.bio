@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header/Header';
 import VideoList from './components/VideoList/VideoList';
 import videoPosts from './videoPostsData';
 import './App.css';
 
 const App = () => {
-  const [containerHeight, setContainerHeight] = useState('70vh');
+  const [containerHeight, setContainerHeight] = useState(window.innerHeight * 0.7);
 
   useEffect(() => {
     const handleResize = () => {
-      setContainerHeight('70vh');
+      setContainerHeight(window.innerHeight * 0.7);
     };
 
     window.addEventListener('resize', handleResize);
@@ -18,17 +17,12 @@ const App = () => {
   }, []);
 
   return (
-    <Router>
-      <div className="app">
-        <div className="gif-container" style={{ height: containerHeight }}>
-          <Header />
-          <Routes>
-            <Route path="/" element={<VideoList videoPosts={videoPosts} />} />
-            {/* You can add more routes here as needed */}
-          </Routes>
-        </div>
+    <div className="app">
+      <div className="gif-container">
+        <Header />
+        <VideoList videoPosts={videoPosts} containerHeight={containerHeight} />
       </div>
-    </Router>
+    </div>
   );
 };
 
