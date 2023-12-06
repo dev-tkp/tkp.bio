@@ -1,6 +1,6 @@
 {
   "files": {
-    "main.css": "/tkp.bio/static/css/main.8a16e3ca.css",
+    "main.css": "/tkp.bio/static/css/main.b9f1a94d.css",
     "main.js": "/tkp.bio/static/js/main.a73244bd.js",
     "static/js/787.e0afb556.chunk.js": "/tkp.bio/static/js/787.e0afb556.chunk.js",
     "static/media/demo3.gif": "/tkp.bio/static/media/demo3.7548d7ec82bcbc8009f5.gif",
@@ -10,12 +10,12 @@
     "static/media/down-arrow.svg": "/tkp.bio/static/media/down-arrow.535341bbc31b1fa2bd7437b6b61bd925.svg",
     "static/media/up-arrow.svg": "/tkp.bio/static/media/up-arrow.e860651260081dd23ea1952b1ad95b4e.svg",
     "static/media/copy-icon.svg": "/tkp.bio/static/media/copy-icon.39cee74782399e86a5fd2c20fa1e5ff4.svg",
-    "main.8a16e3ca.css.map": "/tkp.bio/static/css/main.8a16e3ca.css.map",
+    "main.b9f1a94d.css.map": "/tkp.bio/static/css/main.b9f1a94d.css.map",
     "main.a73244bd.js.map": "/tkp.bio/static/js/main.a73244bd.js.map",
     "787.e0afb556.chunk.js.map": "/tkp.bio/static/js/787.e0afb556.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.8a16e3ca.css",
+    "static/css/main.b9f1a94d.css",
     "static/js/main.a73244bd.js"
   ]
 }
