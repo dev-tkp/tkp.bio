@@ -73,9 +73,17 @@ body, html {
 
 /* Mobile Styles (width <= 768px) */
 @media (max-width: 768px) {
+  .app {
+    justify-content: flex-start; /* Align to the top */
+    align-items: stretch; /* Stretch to the full width */
+    background-color: #000000; /* Set background color to grey */
+  }
+
   .content-container {
     height: 80vh; /* Full height of the viewport */
-    width: 100vw; /* Full width of the ve */
+    width: 100%; /* Full width of the viewport */
+    margin: 0; /* Remove auto margin */
+    border-radius: 0; /* Remove border radius */
   }
 }
 
