@@ -19,16 +19,8 @@ body, html {
   height: 70vh; /* 70% of the viewport height */
   overflow-y: auto; /* Enable vertical scrolling inside the container */
   position: relative; /* Needed for absolute positioning of children */
-}
-
-/* Custom scrollbar styling (optional) */
-.gif-container::-webkit-scrollbar {
-  width: 10px;
-}
-
-.gif-container::-webkit-scrollbar-thumb {
-  background-color: darkgrey;
-  border-radius: 10px;
+  scrollbar-width: thin; /* For Firefox */
+  scrollbar-color: transparent transparent; /* For Firefox */
 }
 
 .header {
@@ -38,8 +30,40 @@ body, html {
   z-index: 1000; /* Ensure the header is above other content */
   background-color: #333;
   color: white;
-  padding: 10px 15px;
+  padding: 30px 0px 10px 0px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Custom scrollbar styling (optional) */
+.gif-container::-webkit-scrollbar {
+  width: 0px;
+}
+
+.gif-container::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 10px;
+}
+
+.gif-container::-webkit-scrollbar-track {
+  background: transparent; /* Transparent scrollbar track */
+}
+
+/* Mobile Styles (width <= 768px) */
+@media (max-width: 768px) {
+  .gif-container {
+    height: 100vh; /* Full height of the viewport */
+    width: 100%; /* Full width of the container */
+  }
+}
+
+/* Desktop Styles (width > 768px) */
+@media (min-width: 769px) {
+  .gif-container {
+    height: 80vh; /* 80% of the viewport height */
+    width: calc(80vh * 0.55); /* 55% of the container's height */
+    margin: auto; /* Center the container horizontally */
+    border-radius: 20px;
+  }
 }
 
 /* Additional global styles can be added as needed */
