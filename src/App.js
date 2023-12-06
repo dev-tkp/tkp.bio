@@ -3,6 +3,8 @@ import useViewportSize from './useViewportSize';
 import Header from './components/Header/Header';
 import VideoList from './components/VideoList/VideoList';
 import videoPosts from './videoPostsData';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 
 const App = () => {
@@ -20,6 +22,7 @@ const App = () => {
 
   return (
     <div className="app">
+      <ToastContainer position="bottom-center" />
       <div className="content-container" style={{ height: containerHeight }}>
         <Header />
         <div className="gif-container">
