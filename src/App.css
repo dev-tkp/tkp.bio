@@ -22,6 +22,7 @@ body, html {
   margin: auto;
   position: relative;
   overflow: hidden; /* Contain the child elements */
+  background-color: #3c3c3c;
 }
 
 .header {
