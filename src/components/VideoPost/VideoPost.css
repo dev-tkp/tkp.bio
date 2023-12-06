@@ -12,6 +12,7 @@
   align-items: flex-end;
   overflow: hidden;
   box-sizing: border-box;
+  scroll-snap-align: center;
 }
 
 .content {

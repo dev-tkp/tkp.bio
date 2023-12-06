@@ -43,6 +43,7 @@ body, html {
 .gif-container {
   flex-grow: 1; /* Expand to fill available space */
   width: 100%;
+  scroll-snap-type: y mandatory; /* Vertical snapping */
   overflow-y: auto;
   position: relative;
   box-sizing: border-box;
