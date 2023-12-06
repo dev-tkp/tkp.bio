@@ -1,5 +1,7 @@
 /* Header.css */
 
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100;200;300;400;500;600;700;800;900&family=Noto+Serif+KR:wght@200;300;400;500;600;700;900&family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
 .header {
   width: 100%; /* Full width of the container */
   color: white; /* Text color */
@@ -10,41 +12,63 @@
 /* Additional styles for header content */
 .header-content {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
 }
 
 .name {
   /* Style for the name text */
   font-size: 1.7em; /* Example font size */
-  margin: 0px 20px 0px 20px; /* Space between name and toggle button */
+  margin: 0px 20px 0px 40px; /* Space between name and toggle button */
+  font-family: 'Noto Sans', sans-serif;
+  font-weight: 500;
 }
 
 .email-toggle {
   /* Style for the email toggle button */
   background: none;
   border: none;
-  color: white;
+  padding:0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 1em;
-  margin: 0px 15px
+}
+
+.email-toggle img {
+  width: 20px; /* Adjust as needed */
+  height: 20px; /* Adjust as needed */
+  padding-top: 3px;
 }
 
 .email-box {
   /* Style for the email display box */
   margin-top: 5px;
-  background-color: #444;
-  padding: 5px;
-  border-radius: 5px;
-  display: flex;
+  margin-left: 140px;
+  margin-right: 40px;
+  padding: 20px;
+  background-color: #ffffff;
+  color: #545454;
+  font-family: 'Noto Sans', sans-serif;
+  border-radius: 15px;
+  display: flex; /* Use flexbox */
   align-items: center;
+  justify-content: space-between; /* Space out children */
+  box-shadow: 10px 10px 30px 0px rgba(0,0,0,0.10);
+  font-size: 0.8em;
 }
 
 .copy-button {
-  /* Style for the copy email button */
   background: none;
   border: none;
-  color: white;
-  margin-left: 10px;
   cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copy-button img {
+  width: 20px; /* Adjust as needed */
+  height: 20px; /* Adjust as needed */
 }

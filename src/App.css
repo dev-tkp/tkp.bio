@@ -11,7 +11,7 @@ body, html {
   justify-content: center; /* Center horizontally */
   align-items: center; /* Center vertically */
   min-height: 100vh; /* Minimum height to cover the viewport */
-  background-color: #f0f0f0; /* Background color for the app */
+  background-color: #ffffff; /* Background color for the app */
 }
 
 .content-container {
@@ -32,12 +32,12 @@ body, html {
   /* ... other header styles ... */
   background: linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.5) 0%, 
+    rgba(0, 0, 0, 0.3) 0%, 
     rgba(0, 0, 0, 0) 100%
   );
   /* Ensure the text color and other styles are adjusted to maintain visibility and aesthetics */
   color: white;
-  padding: 30px 0px 70px 0px;
+  padding: 50px 0px 70px 0px;
 }
 
 .gif-container {
