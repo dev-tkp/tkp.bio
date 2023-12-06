@@ -14,56 +14,84 @@ body, html {
   background-color: #f0f0f0; /* Background color for the app */
 }
 
-.gif-container {
-  width: 100vw; /* Full width of the viewport */
-  height: 70vh; /* 70% of the viewport height */
-  overflow-y: auto; /* Enable vertical scrolling inside the container */
-  position: relative; /* Needed for absolute positioning of children */
-  scrollbar-width: thin; /* For Firefox */
-  scrollbar-color: transparent transparent; /* For Firefox */
+.content-container {
+  display: flex; /* Flex container */
+  flex-direction: column;
+  height: 80vh;
+  width: calc(80vh * 0.55);
+  margin: auto;
+  position: relative;
+  overflow: hidden; /* Contain the child elements */
 }
 
 .header {
-  position: sticky; /* Stick to the top within its parent container */
+  position: absolute;
   top: 0;
   width: 100%;
-  z-index: 1000; /* Ensure the header is above other content */
-  background-color: #333;
+  z-index: 1000;
+  /* ... other header styles ... */
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.5) 0%, 
+    rgba(0, 0, 0, 0) 100%
+  );
+  /* Ensure the text color and other styles are adjusted to maintain visibility and aesthetics */
   color: white;
-  padding: 30px 0px 10px 0px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  padding: 30px 0px 70px 0px;
 }
 
-/* Custom scrollbar styling (optional) */
-.gif-container::-webkit-scrollbar {
-  width: 0px;
+.gif-container {
+  flex-grow: 1; /* Expand to fill available space */
+  width: 100%;
+  overflow-y: auto;
+  position: relative;
+  box-sizing: border-box;
+  display: flex; /* Make it a flex container */
+  flex-direction: column;
+  scrollbar-width: thin; /* 'auto' or 'thin' */
+  scrollbar-color: transparent transparent; /* Thumb and track color */
 }
 
-.gif-container::-webkit-scrollbar-thumb {
-  background-color: transparent;
-  border-radius: 10px;
+/* Custom scrollbar for Webkit browsers */
+
+/* Scrollbar track */
+::-webkit-scrollbar {
+  width: 0px; /* Adjust the width of the scrollbar */
 }
 
-.gif-container::-webkit-scrollbar-track {
+/* Scrollbar handle */
+::-webkit-scrollbar-thumb {
+  background-color: transparent; /* Transparent scrollbar thumb */
+}
+
+/* Scrollbar track */
+::-webkit-scrollbar-track {
   background: transparent; /* Transparent scrollbar track */
 }
 
 /* Mobile Styles (width <= 768px) */
 @media (max-width: 768px) {
-  .gif-container {
-    height: 100vh; /* Full height of the viewport */
-    width: 100%; /* Full width of the container */
+  .content-container {
+    height: 80vh; /* Full height of the viewport */
+    width: 100vw; /* Full width of the ve */
   }
 }
 
 /* Desktop Styles (width > 768px) */
 @media (min-width: 769px) {
-  .gif-container {
+  .content-container {
     height: 80vh; /* 80% of the viewport height */
     width: calc(80vh * 0.55); /* 55% of the container's height */
     margin: auto; /* Center the container horizontally */
-    border-radius: 20px;
+    border-radius: 30px;
   }
-}
+
+  .header {
+  border-radius: 30px 30px 0px 0px; }
+
+  .gif-container {
+    border-radius: 30px; /* Apply the same border-radius */
+
+} }
 
 /* Additional global styles can be added as needed */

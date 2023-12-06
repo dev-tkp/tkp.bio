@@ -2,10 +2,7 @@
 
 .header {
   width: 100%; /* Full width of the container */
-  background-color: #333; /* Example background color */
   color: white; /* Text color */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* Shadow for depth */
-  position: sticky; /* Stick to the top */
   top: 0; /* Align to the top of the container */
   z-index: 1000; /* High z-index to keep it above other content */
 }
@@ -19,8 +16,8 @@
 
 .name {
   /* Style for the name text */
-  font-size: 1.2em; /* Example font size */
-  margin: 0px 15px; /* Space between name and toggle button */
+  font-size: 1.7em; /* Example font size */
+  margin: 0px 20px 0px 20px; /* Space between name and toggle button */
 }
 
 .email-toggle {
