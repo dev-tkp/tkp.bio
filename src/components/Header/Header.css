@@ -18,7 +18,7 @@
 
 .name {
   /* Style for the name text */
-  font-size: 1.3em; /* Example font size */
+  font-size: 1.6em; /* Example font size */
   margin: 0px 20px 0px 40px; /* Space between name and toggle button */
   font-family: 'Noto Sans', sans-serif;
   font-weight: 500;
@@ -55,7 +55,7 @@
   align-items: center;
   justify-content: space-between; /* Space out children */
   box-shadow: 10px 10px 30px 0px rgba(0,0,0,0.10);
-  font-size: 0.6em;
+  font-size: 0.7em;
 }
 
 .copy-button {
