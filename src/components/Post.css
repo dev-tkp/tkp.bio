@@ -1,0 +1,98 @@
+.post {
+  position: relative;
+  background-color: #000; /* 배경 미디어가 없을 경우를 대비한 기본 배경색 */
+  width: 100%;
+  height: 100%; /* 부모(.app__videos)의 높이를 따르도록 변경 */
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* 콘텐츠를 하단으로 정렬 */
+  color: white; /* 텍스트 색상을 흰색으로 변경 */
+  text-align: left; /* 텍스트를 왼쪽으로 정렬 */
+  overflow: hidden; /* 자식 요소가 넘치는 것을 방지 */
+}
+
+/* 하단 텍스트 가독성을 위한 검은색 그라데이션 오버레이 */
+.post::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40%; /* 그라데이션 높이 */
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  z-index: 1;
+  pointer-events: none; /* 그라데이션 영역이 클릭 이벤트를 막지 않도록 설정 */
+}
+
+.post__background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* 이미지가 비율을 유지하며 꽉 차도록 설정 */
+  z-index: 1;
+}
+
+.post__footer {
+  position: relative;
+  z-index: 2;
+  padding: 14px 20px 21px; /* 하단 여백 추가 (14px * 1.5) */
+}
+
+.post__footerAuthor {
+  display: flex;
+  align-items: center;
+  margin-bottom: 7px; /* 하단 여백 축소 */
+  cursor: pointer; /* 클릭 가능함을 표시 */
+}
+
+.post__profilePic {
+  width: 48px; /* 모바일용 크기 (기존 * 1.7) */
+  height: 48px; /* 모바일용 크기 (기존 * 1.7) */
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 14px; /* 모바일용 크기 */
+  border: 2.5px solid white; /* 모바일용 크기 */
+}
+
+.post__footerAuthor strong {
+  font-size: 1.2rem; /* 모바일용 크기 */
+  font-weight: 600;
+}
+
+.post__footerDescription p {
+  margin: 0;
+  font-size: 1.05rem; /* 모바일용 크기 */
+  line-height: 1.4;
+}
+
+.post__readMore {
+  background: none;
+  border: none;
+  color: #a9a9a9;
+  font-weight: 600;
+  padding: 0 0 0 5px;
+  cursor: pointer;
+  font-size: 1.05rem; /* 모바일용 크기 */
+}
+
+/* 데스크탑 화면(550px 이상)에서 크기 다시 줄이기 */
+@media (min-width: 550px) {
+  .post__profilePic {
+    width: 28px;
+    height: 28px;
+    margin-right: 8px;
+    border-width: 1.5px;
+  }
+
+  .post__footerAuthor strong {
+    font-size: 0.7rem;
+  }
+
+  .post__footerDescription p,
+  .post__readMore {
+    font-size: 0.63rem;
+  }
+}

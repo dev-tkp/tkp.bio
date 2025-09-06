@@ -1,0 +1,32 @@
+.app {
+  height: 100vh;
+  background-color: black; /* 모바일 기본 배경 */
+  display: grid;
+  place-items: center;
+  transition: background-color 0.3s ease;
+}
+
+.app__videos {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  overflow: scroll;
+  scroll-snap-type: y mandatory;
+  /* 데스크탑에서 크기가 변경될 때 부드러운 전환 효과 */
+  transition: all 0.3s ease;
+}
+
+/* 데스크탑과 같은 큰 화면을 위한 미디어 쿼리 (가로 550px 이상) */
+@media (min-width: 550px) {
+  .app {
+    background-color: white; /* 큰 화면에서는 배경을 흰색으로 변경 */
+  }
+
+  .app__videos {
+    height: 85vh; /* 화면 높이의 85%로 설정 */
+    width: auto; /* 너비는 종횡비에 따라 자동 계산 */
+    aspect-ratio: 9 / 16; /* 세로가 긴 스마트폰 비율 */
+    border-radius: 16px; /* 모서리를 둥글게 */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); /* 자연스러운 그림자 효과 */
+  }
+}

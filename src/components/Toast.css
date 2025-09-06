@@ -1,0 +1,27 @@
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  z-index: 1001;
+  opacity: 0;
+  transition: opacity 0.8s ease-in-out; /* 2배 느리게 변경 */
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.toast.visible {
+  opacity: 1;
+}
+
+.toast-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+}
