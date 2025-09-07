@@ -64,19 +64,34 @@ async function uploadFileToFirebase(file) {
     throw new Error(`Failed to download file: ${fileResponse.status} ${fileResponse.statusText}`);
   }
 
-  const fileArrayBuffer = await fileResponse.arrayBuffer();
-  console.log(`[6/8] File downloaded from Slack. Size: ${fileArrayBuffer.byteLength} bytes.`);
-
   const uniqueFileName = `${Date.now()}-${randomUUID()}-${file.name}`;
   const destination = `posts/${uniqueFileName}`;
   const storageFile = storage.file(destination);
 
-  console.log(`[7/8] Attempting to upload to Firebase Storage at: ${destination}`);
-  await storageFile.save(Buffer.from(fileArrayBuffer), { metadata: { contentType: file.mimetype } });
-  
-  await storageFile.makePublic();
+  console.log(`[6/8] Starting to stream file to Firebase Storage at: ${destination}`);
+
+  // 스트림을 Promise로 감싸서 비동기 작업 완료를 기다립니다.
+  await new Promise((resolve, reject) => {
+    const writeStream = storageFile.createWriteStream({
+      metadata: { contentType: file.mimetype },
+      public: true, // 업로드와 동시에 파일을 공개로 설정합니다.
+    });
+
+    fileResponse.body.pipe(writeStream);
+
+    writeStream.on('finish', () => {
+      console.log(`[7/8] File stream finished. File is now public.`);
+      resolve();
+    });
+
+    writeStream.on('error', (err) => {
+      console.error('[ERROR] Firebase Storage stream write error:', err);
+      reject(new Error(`Failed to upload file to Firebase Storage: ${err.message}`));
+    });
+  });
+
   const publicUrl = storageFile.publicUrl();
-  console.log(`[8/8] File successfully uploaded. Public URL: ${publicUrl}`);
+  console.log(`[8/8] File successfully uploaded via stream. Public URL: ${publicUrl}`);
 
   return {
     type: file.mimetype.startsWith('video/') ? 'video' : 'image',
