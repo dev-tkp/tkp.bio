@@ -45,10 +45,9 @@ export default async function handler(req, res) {
                         responseType: 'arraybuffer'
                     });
                     
-                    // 2. Firebase Storage에 업로드
-                    const bucket = storage.bucket(); // 기본 버킷 가져오기
+                    // 2. Firebase Storage에 업로드 (storage가 이미 버킷 객체이므로 .bucket() 호출 제거)
                     const destination = `posts/${Date.now()}-${file.name}`;
-                    const storageFile = bucket.file(destination);
+                    const storageFile = storage.file(destination);
 
                     await storageFile.save(response.data, { metadata: { contentType: file.mimetype } });
                     
