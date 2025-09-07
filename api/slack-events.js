@@ -121,8 +121,9 @@ export default async function handler(req, res) {
             if (file && (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/'))) {
                 console.log(`Processing attached file: ${file.name}`);
                 try {
-                    // 1. Slack에서 파일 다운로드
-                    const response = await axios.get(file.permalink_public, {
+                    // 1. Slack에서 파일 다운로드 (인증이 필요한 비공개 다운로드 URL 사용)
+                    const response = await axios.get(file.url_private_download, {
+                        headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` },
                         responseType: 'arraybuffer'
                     });
                     
