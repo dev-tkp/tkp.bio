@@ -1,4 +1,5 @@
-import { db } from './lib/firebase';
+import { db, storage } from './lib/firebase';
+import axios from 'axios';
 
 // 현재 시간을 'YYYY-MM-DD HH:MM' 형식으로 반환하는 헬퍼 함수
 const getCurrentTimestamp = () => {
@@ -25,28 +26,59 @@ export default async function handler(req, res) {
     // 봇이 보낸 메시지나, 메시지 수정/삭제 등은 무시하고
     // 순수하게 사용자가 채널에 보낸 새 메시지만 처리합니다.
     if (event.type === 'message' && !event.subtype && !event.bot_id) {
-      try {
-        console.log('Processing new message from Slack:', event.text);
+        try {
+            console.log('Processing new message from Slack:', event.text);
+            
+            const file = event.files && event.files[0];
+            let background = {
+                type: 'image',
+                url: '/assets/post2_bg.gif', // 기본 배경
+            };
 
-        // Firestore에 저장할 새 포스트 객체를 생성합니다.
-        const newPost = {
-          author: 'Taekang Park', // TODO: 향후 Slack 프로필과 연동 가능
-          profilePic: '/assets/profile_pic.png', // 기본 프로필 이미지
-          content: event.text, // Slack 메시지 내용을 content로 사용
-          createdAt: getCurrentTimestamp(),
-          background: {
-            type: 'image',
-            // TODO: 지금은 기본 배경 이미지를 사용합니다.
-            // 다음 단계에서 Slack에 첨부된 이미지/비디오를 사용하도록 개선합니다.
-            url: '/assets/post2_bg.gif', 
-          },
-        };
+            // 첨부 파일이 있고, 이미지 또는 비디오인 경우 처리
+            if (file && (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/'))) {
+                console.log(`Processing attached file: ${file.name}`);
+                try {
+                    // 1. Slack에서 파일 다운로드
+                    const response = await axios.get(file.url_private, {
+                        headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` },
+                        responseType: 'arraybuffer'
+                    });
+                    
+                    // 2. Firebase Storage에 업로드
+                    const bucket = storage.bucket(); // 기본 버킷 가져오기
+                    const destination = `posts/${Date.now()}-${file.name}`;
+                    const storageFile = bucket.file(destination);
 
-        await db.collection('posts').add(newPost);
-        console.log('Successfully added new post to Firestore.');
-      } catch (error) {
-        console.error('Error saving post to Firestore:', error);
-      }
+                    await storageFile.save(response.data, { metadata: { contentType: file.mimetype } });
+                    
+                    // 3. 파일을 공개로 설정하고 URL 가져오기
+                    await storageFile.makePublic();
+                    
+                    background = {
+                        type: file.mimetype.startsWith('video/') ? 'video' : 'image',
+                        url: storageFile.publicUrl(),
+                    };
+                    console.log(`File successfully uploaded to: ${background.url}`);
+                } catch (uploadError) {
+                    console.error('Error handling file upload:', uploadError);
+                    // 파일 처리 실패 시 기본 배경을 그대로 사용
+                }
+            }
+
+            const newPost = {
+                author: 'tkpar',
+                profilePic: '/assets/profile_pic.png',
+                content: event.text || '', // 텍스트가 없는 이미지/비디오만 올릴 경우 대비
+                createdAt: getCurrentTimestamp(),
+                background: background,
+            };
+
+            await db.collection('posts').add(newPost);
+            console.log('Successfully added new post to Firestore.');
+        } catch (error) {
+            console.error('Error saving post to Firestore:', error);
+        }
     }
   }
 }
