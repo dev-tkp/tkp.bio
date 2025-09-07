@@ -98,7 +98,7 @@ export default async function handler(req, res) {
             let authorName = 'tkpar'; // 기본값
             let authorProfilePic = '/assets/profile_pic.png'; // 기본값
             try {
-              console.log(`[2/8] Attempting to fetch user info for user: ${event.user}`);
+                console.log(`[2/8] Attempting to fetch user info for user: ${event.user}`);
                 const userInfoUrl = new URL('https://slack.com/api/users.info');
                 userInfoUrl.searchParams.set('user', event.user);
 
@@ -120,6 +120,9 @@ export default async function handler(req, res) {
                 console.log(`[3/8] Successfully fetched user info for: ${authorName}`);
             } catch (userError) {
               console.error('[ERROR] Error fetching Slack user info:', userError.message);
+              if (userError.response) {
+                console.error('Axios user info error response:', userError.response.data);
+              }
               // 사용자 정보 조회 실패 시 기본값 사용
             }
 
@@ -133,16 +136,13 @@ export default async function handler(req, res) {
             if (file && (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/'))) {
                 console.log(`[4/8] File detected. Mimetype: ${file.mimetype}. Processing: ${file.name}`);
                 try {
-                    // 1. Slack에서 파일 다운로드 (인증이 필요 없는 공개 URL 'permalink_public' 사용)
-                    // 이 URL은 직접 파일에 접근할 수 있어 더 안정적입니다.
-                    console.log(`[5/8] Attempting to download file from public URL: ${file.permalink_public}`);
-                    const fileResponse = await fetch(file.permalink_public, {
-                        // 공개 URL이므로 Authorization 헤더가 필요 없습니다.
+                    // 1. Slack에서 파일 다운로드 (인증이 필요한 비공개 다운로드 URL 사용)
+                    console.log(`[5/8] Attempting to download file from: ${file.url_private_download}`);
+                    const fileResponse = await fetch(file.url_private_download, {
+                        headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` }
                     });
 
                     if (!fileResponse.ok) {
-                        const errorBody = await fileResponse.text();
-                        console.error(`[ERROR] Public file download failed with status ${fileResponse.status}. Body: ${errorBody}`);
                         throw new Error(`Failed to download file: ${fileResponse.status} ${fileResponse.statusText}`);
                     }
 
@@ -169,6 +169,9 @@ export default async function handler(req, res) {
                     console.log(`[8/8] File successfully uploaded. Public URL: ${publicUrl}`);
                 } catch (uploadError) {
                     console.error('[ERROR] Error during file download or upload process:', uploadError.message);
+                    if (uploadError.response) {
+                        console.error('Axios file download error response:', uploadError.response.data);
+                    }
                     // 파일 처리 실패 시 기본 배경을 그대로 사용
                 }
             }
