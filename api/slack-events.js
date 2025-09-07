@@ -1,5 +1,4 @@
 import { db, storage, FieldValue } from './lib/firebase'; // Firestore의 serverTimestamp를 위해 FieldValue를 가져옵니다.
-import axios from 'axios';
 import crypto from 'crypto'; // Slack 서명 확인 및 파일 이름 생성을 위해 crypto 모듈 사용
 
 // Vercel의 기본 body-parser를 비활성화합니다. Slack 서명 확인을 위해 원시(raw) 본문이 필요합니다.
@@ -99,15 +98,26 @@ export default async function handler(req, res) {
             let authorName = 'tkpar'; // 기본값
             let authorProfilePic = '/assets/profile_pic.png'; // 기본값
             try {
-              console.log(`[2/8] Attempting to fetch user info for user: ${event.user}`);
-              const userInfoResponse = await axios.get('https://slack.com/api/users.info', {
-                  headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` },
-                  params: { user: event.user }
-              });
-              const slackUser = userInfoResponse.data.user;
-              authorName = slackUser.profile.display_name || slackUser.real_name || slackUser.name;
-              authorProfilePic = slackUser.profile.image_512 || slackUser.profile.image_original || '/assets/profile_pic.png';
-              console.log(`[3/8] Successfully fetched user info for: ${authorName}`);
+                console.log(`[2/8] Attempting to fetch user info for user: ${event.user}`);
+                const userInfoUrl = new URL('https://slack.com/api/users.info');
+                userInfoUrl.searchParams.set('user', event.user);
+
+                const userInfoResponse = await fetch(userInfoUrl.toString(), {
+                    headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` }
+                });
+
+                if (!userInfoResponse.ok) {
+                    throw new Error(`Failed to fetch user info: ${userInfoResponse.status} ${userInfoResponse.statusText}`);
+                }
+
+                const userInfoData = await userInfoResponse.json();
+                if (!userInfoData.ok) {
+                    throw new Error(`Slack API error for user info: ${userInfoData.error}`);
+                }
+                const slackUser = userInfoData.user;
+                authorName = slackUser.profile.display_name || slackUser.real_name || slackUser.name;
+                authorProfilePic = slackUser.profile.image_512 || slackUser.profile.image_original || '/assets/profile_pic.png';
+                console.log(`[3/8] Successfully fetched user info for: ${authorName}`);
             } catch (userError) {
               console.error('[ERROR] Error fetching Slack user info:', userError.message);
               if (userError.response) {
@@ -126,13 +136,18 @@ export default async function handler(req, res) {
             if (file && (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/'))) {
                 console.log(`[4/8] File detected. Mimetype: ${file.mimetype}. Processing: ${file.name}`);
                 try {
-                    // 1. Slack에서 파일 다운로드
+                    // 1. Slack에서 파일 다운로드 (인증이 필요한 비공개 다운로드 URL 사용)
                     console.log(`[5/8] Attempting to download file from: ${file.url_private_download}`);
-                    const response = await axios.get(file.url_private_download, {
-                        headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` },
-                        responseType: 'arraybuffer'
+                    const fileResponse = await fetch(file.url_private_download, {
+                        headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` }
                     });
-                    console.log(`[6/8] File downloaded from Slack. Size: ${response.data.length} bytes.`);
+
+                    if (!fileResponse.ok) {
+                        throw new Error(`Failed to download file: ${fileResponse.status} ${fileResponse.statusText}`);
+                    }
+
+                    const fileArrayBuffer = await fileResponse.arrayBuffer();
+                    console.log(`[6/8] File downloaded from Slack. Size: ${fileArrayBuffer.byteLength} bytes.`);
                     
                     // 2. Firebase Storage에 업로드
                     // 파일 이름의 유일성을 보장하기 위해 UUID 추가
@@ -141,7 +156,7 @@ export default async function handler(req, res) {
                     const storageFile = storage.file(destination);
 
                     console.log(`[7/8] Attempting to upload to Firebase Storage at: ${destination}`);
-                    await storageFile.save(response.data, { metadata: { contentType: file.mimetype } });
+                    await storageFile.save(Buffer.from(fileArrayBuffer), { metadata: { contentType: file.mimetype } });
                     
                     // 3. 파일을 공개로 설정하고 URL 가져오기
                     await storageFile.makePublic();
