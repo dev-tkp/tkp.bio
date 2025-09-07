@@ -1,9 +1,9 @@
 // 1. assets 폴더에서 모든 미디어를 이 파일에서 import 합니다.
-import post1Bg from '../assets/post1_bg.gif';
-import post2Bg from '../assets/post2_bg.gif';
-import post3Bg from '../assets/post3_bg.gif';
-import post4Bg from '../assets/post4_bg.gif';
-import profilePic from '../assets/profile_pic.png';
+import post1Bg from './assets/post1_bg.gif';
+import post2Bg from './assets/post2_bg.gif';
+import post3Bg from './assets/post3_bg.gif';
+import post4Bg from './assets/post4_bg.gif';
+import profilePic from './assets/profile_pic.png';
 
 // 2. 데이터 배열을 정의하고 export 합니다.
 const posts = [
