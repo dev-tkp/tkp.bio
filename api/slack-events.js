@@ -123,7 +123,6 @@ export default async function handler(req, res) {
                 try {
                     // 1. Slack에서 파일 다운로드
                     const response = await axios.get(file.permalink_public, {
-                        headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` },
                         responseType: 'arraybuffer'
                     });
                     
