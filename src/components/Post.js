@@ -7,6 +7,17 @@ import Toast from './Toast';
 const CONTENT_MAX_LENGTH = 80;
 const MY_EMAIL = 'tkpark0504@gmail.com';
 
+// Firestore Timestamp 객체를 'YYYY-MM-DD HH:MM' 형식으로 변환하는 헬퍼 함수
+const formatTimestamp = (timestamp) => {
+  if (!timestamp || !timestamp.toDate) {
+    // timestamp가 유효하지 않거나, 이미 문자열인 경우 그대로 반환
+    return timestamp;
+  }
+  const d = timestamp.toDate();
+  const pad = (n) => (n < 10 ? '0' + n : n);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 function Post({ id, author, profilePic, content, background, createdAt }) {
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -126,7 +137,7 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
           <img src={profilePic} alt={author} className="post__profilePic" />
           <div className="post__authorInfo">
             <strong>{author}</strong>
-            <span className="post__createdAt">{createdAt}</span>
+            <span className="post__createdAt">{formatTimestamp(createdAt)}</span>
           </div>
         </div>
         <div className="post__footerDescription">
