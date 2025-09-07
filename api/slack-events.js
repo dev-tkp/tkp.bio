@@ -91,7 +91,7 @@ export default async function handler(req, res) {
 
     // 봇이 보낸 메시지나, 메시지 수정/삭제 등은 무시하고
     // 순수하게 사용자가 채널에 보낸 새 메시지만 처리합니다.
-    if (event.type === 'message' && !event.subtype && !event.bot_id) {
+    if (event.type === 'message' && (!event.subtype || event.subtype === 'file_share') && !event.bot_id) {
         try {
             console.log('Processing new message from Slack:', event.text);
 
