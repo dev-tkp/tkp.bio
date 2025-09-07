@@ -19,8 +19,10 @@ if (!admin.apps.length) {
     console.log('Firebase Admin SDK initialized.');
   } catch (error) {
     console.error('Firebase Admin Initialization Error:', error.stack);
-    // Initialization failed, prevent further execution
-    throw new Error('Could not initialize Firebase Admin SDK.');
+    // 원본 에러 정보를 포함하여 디버깅이 용이하도록 수정합니다.
+    const initializationError = new Error('Could not initialize Firebase Admin SDK.');
+    initializationError.cause = error;
+    throw initializationError;
   }
 }
 

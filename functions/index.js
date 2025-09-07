@@ -4,6 +4,9 @@ const sharp = require("sharp");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
+const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
+const ffmpeg = require("fluent-ffmpeg");
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 admin.initializeApp();
 
@@ -84,4 +87,76 @@ exports.optimizeImage = functions
     await bucketFile.delete(); // 원본 파일 삭제
 
     return functions.logger.log("Cleanup finished.");
+  });
+
+/**
+ * Firebase Storage에 비디오가 업로드될 때 트리거되어
+ * 비디오를 웹 스트리밍에 최적화하고 Firestore 문서의 URL을 업데이트합니다.
+ */
+exports.optimizeVideo = functions
+  .region("asia-northeast3") // 서울 리전
+  .runWith({ timeoutSeconds: 300, memory: "2GB" }) // 비디오 처리를 위해 타임아웃(최대 540초)과 메모리(최대 2GB)를 늘립니다.
+  .storage.object()
+  .onFinalize(async (object) => {
+    const filePath = object.name;
+    const contentType = object.contentType;
+    const firestoreDocId = object.metadata?.firestoreDocId;
+
+    // 1. 최적화 대상인지 확인
+    if (!contentType.startsWith("video/")) {
+      return functions.logger.log("This is not a video.");
+    }
+    if (!firestoreDocId) {
+      return functions.logger.log("firestoreDocId metadata not found. Skipping.");
+    }
+    if (filePath.startsWith("posts/optimized/")) {
+      return functions.logger.log("This is already an optimized video.");
+    }
+
+    functions.logger.log(`Optimizing video for doc: ${firestoreDocId}, path: ${filePath}`);
+
+    // 2. 비디오 다운로드
+    const bucketFile = storage.file(filePath);
+    const tempFilePath = path.join(os.tmpdir(), path.basename(filePath));
+    await bucketFile.download({ destination: tempFilePath });
+    functions.logger.log("Video downloaded locally to", tempFilePath);
+
+    // 3. 비디오 최적화 (ffmpeg 사용)
+    const optimizedFileName = `optimized_${path.basename(filePath)}.mp4`;
+    const optimizedTempPath = path.join(os.tmpdir(), optimizedFileName);
+
+    await new Promise((resolve, reject) => {
+      ffmpeg(tempFilePath)
+        .outputOptions([
+          "-c:v libx264",       // H.264 코덱 사용
+          "-preset fast",       // 빠른 인코딩
+          "-crf 23",            // 화질 설정 (18-28 범위가 일반적)
+          '-vf "scale=720:-2"', // 너비 720px로 리사이즈, 비율 유지
+          "-c:a aac",           // AAC 오디오 코덱
+          "-b:a 128k",          // 오디오 비트레이트
+          "-movflags +faststart", // 웹 스트리밍 최적화
+        ])
+        .on("end", resolve)
+        .on("error", reject)
+        .save(optimizedTempPath);
+    });
+
+    functions.logger.log("Video optimized and saved to", optimizedTempPath);
+
+    // 4. 최적화된 비디오 업로드 및 공개
+    const destination = `posts/optimized/${optimizedFileName}`;
+    const [uploadedFile] = await storage.upload(optimizedTempPath, { destination, public: true });
+    const publicUrl = uploadedFile.publicUrl();
+    functions.logger.log("Optimized video uploaded. Public URL:", publicUrl);
+
+    // 5. Firestore 문서 업데이트
+    await db.collection("posts").doc(firestoreDocId).update({ "background.url": publicUrl, "background.type": "video" });
+    functions.logger.log(`Firestore doc ${firestoreDocId} updated successfully.`);
+
+    // 6. 임시 파일 및 원본 파일 삭제
+    fs.unlinkSync(tempFilePath);
+    fs.unlinkSync(optimizedTempPath);
+    await bucketFile.delete();
+
+    return functions.logger.log("Video cleanup finished.");
   });
