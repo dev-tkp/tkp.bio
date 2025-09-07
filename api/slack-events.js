@@ -1,5 +1,5 @@
 import { db, storage, FieldValue } from './lib/firebase'; // Firestore의 serverTimestamp를 위해 FieldValue를 가져옵니다.
-import crypto from 'crypto'; // Slack 서명 확인 및 파일 이름 생성을 위해 crypto 모듈 사용
+import crypto, { randomUUID } from 'crypto'; // Slack 서명 확인 및 파일 이름 생성을 위해 crypto 모듈 사용
 
 // Vercel의 기본 body-parser를 비활성화합니다. Slack 서명 확인을 위해 원시(raw) 본문이 필요합니다.
 export const config = {
@@ -15,6 +15,73 @@ async function buffer(readable) {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
   return Buffer.concat(chunks);
+}
+
+// Slack 사용자 정보를 가져오는 헬퍼 함수
+async function getSlackUserInfo(userId) {
+  try {
+    console.log(`[2/8] Attempting to fetch user info for user: ${userId}`);
+    const userInfoUrl = new URL('https://slack.com/api/users.info');
+    userInfoUrl.searchParams.set('user', userId);
+
+    const userInfoResponse = await fetch(userInfoUrl.toString(), {
+      headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` }
+    });
+
+    if (!userInfoResponse.ok) {
+      throw new Error(`Failed to fetch user info: ${userInfoResponse.status} ${userInfoResponse.statusText}`);
+    }
+
+    const userInfoData = await userInfoResponse.json();
+    if (!userInfoData.ok) {
+      throw new Error(`Slack API error for user info: ${userInfoData.error}`);
+    }
+
+    const slackUser = userInfoData.user;
+    console.log(`[3/8] Successfully fetched user info for: ${slackUser.profile.display_name || slackUser.real_name}`);
+    return {
+      authorName: slackUser.profile.display_name || slackUser.real_name || slackUser.name,
+      authorProfilePic: slackUser.profile.image_512 || slackUser.profile.image_original || '/assets/profile_pic.png',
+    };
+  } catch (userError) {
+    console.error('[ERROR] Error fetching Slack user info:', userError.message);
+    // 사용자 정보 조회 실패 시 기본값 반환
+    return {
+      authorName: 'tkpar',
+      authorProfilePic: '/assets/profile_pic.png',
+    };
+  }
+}
+
+// Slack에서 파일을 다운로드하여 Firebase Storage에 업로드하는 헬퍼 함수
+async function uploadFileToFirebase(file) {
+  console.log(`[5/8] Attempting to download file from: ${file.url_private_download}`);
+  const fileResponse = await fetch(file.url_private_download, {
+    headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` }
+  });
+
+  if (!fileResponse.ok) {
+    throw new Error(`Failed to download file: ${fileResponse.status} ${fileResponse.statusText}`);
+  }
+
+  const fileArrayBuffer = await fileResponse.arrayBuffer();
+  console.log(`[6/8] File downloaded from Slack. Size: ${fileArrayBuffer.byteLength} bytes.`);
+
+  const uniqueFileName = `${Date.now()}-${randomUUID()}-${file.name}`;
+  const destination = `posts/${uniqueFileName}`;
+  const storageFile = storage.file(destination);
+
+  console.log(`[7/8] Attempting to upload to Firebase Storage at: ${destination}`);
+  await storageFile.save(Buffer.from(fileArrayBuffer), { metadata: { contentType: file.mimetype } });
+  
+  await storageFile.makePublic();
+  const publicUrl = storageFile.publicUrl();
+  console.log(`[8/8] File successfully uploaded. Public URL: ${publicUrl}`);
+
+  return {
+    type: file.mimetype.startsWith('video/') ? 'video' : 'image',
+    url: publicUrl,
+  };
 }
 
 export default async function handler(req, res) {
@@ -93,85 +160,21 @@ export default async function handler(req, res) {
     if (event.type === 'message' && (!event.subtype || event.subtype === 'file_share') && !event.bot_id) {
         try {
             console.log(`[1/8] Processing new message from Slack: "${event.text}"`);
-
-            // Slack API를 사용하여 메시지를 보낸 사용자 정보 가져오기
-            let authorName = 'tkpar'; // 기본값
-            let authorProfilePic = '/assets/profile_pic.png'; // 기본값
-            try {
-                console.log(`[2/8] Attempting to fetch user info for user: ${event.user}`);
-                const userInfoUrl = new URL('https://slack.com/api/users.info');
-                userInfoUrl.searchParams.set('user', event.user);
-
-                const userInfoResponse = await fetch(userInfoUrl.toString(), {
-                    headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` }
-                });
-
-                if (!userInfoResponse.ok) {
-                    throw new Error(`Failed to fetch user info: ${userInfoResponse.status} ${userInfoResponse.statusText}`);
-                }
-
-                const userInfoData = await userInfoResponse.json();
-                if (!userInfoData.ok) {
-                    throw new Error(`Slack API error for user info: ${userInfoData.error}`);
-                }
-                const slackUser = userInfoData.user;
-                authorName = slackUser.profile.display_name || slackUser.real_name || slackUser.name;
-                authorProfilePic = slackUser.profile.image_512 || slackUser.profile.image_original || '/assets/profile_pic.png';
-                console.log(`[3/8] Successfully fetched user info for: ${authorName}`);
-            } catch (userError) {
-              console.error('[ERROR] Error fetching Slack user info:', userError.message);
-              if (userError.response) {
-                console.error('Axios user info error response:', userError.response.data);
-              }
-              // 사용자 정보 조회 실패 시 기본값 사용
-            }
+            const { authorName, authorProfilePic } = await getSlackUserInfo(event.user);
 
             const file = event.files && event.files[0];
             let background = {
                 type: 'image',
                 url: '/assets/post2_bg.gif', // 기본 배경
             };
-
+            
             // 첨부 파일이 있고, 이미지 또는 비디오인 경우 처리
             if (file && (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/'))) {
                 console.log(`[4/8] File detected. Mimetype: ${file.mimetype}. Processing: ${file.name}`);
                 try {
-                    // 1. Slack에서 파일 다운로드 (인증이 필요한 비공개 다운로드 URL 사용)
-                    console.log(`[5/8] Attempting to download file from: ${file.url_private_download}`);
-                    const fileResponse = await fetch(file.url_private_download, {
-                        headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` }
-                    });
-
-                    if (!fileResponse.ok) {
-                        throw new Error(`Failed to download file: ${fileResponse.status} ${fileResponse.statusText}`);
-                    }
-
-                    const fileArrayBuffer = await fileResponse.arrayBuffer();
-                    console.log(`[6/8] File downloaded from Slack. Size: ${fileArrayBuffer.byteLength} bytes.`);
-                    
-                    // 2. Firebase Storage에 업로드
-                    // 파일 이름의 유일성을 보장하기 위해 UUID 추가
-                    const uniqueFileName = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
-                    const destination = `posts/${uniqueFileName}`;
-                    const storageFile = storage.file(destination);
-
-                    console.log(`[7/8] Attempting to upload to Firebase Storage at: ${destination}`);
-                    await storageFile.save(Buffer.from(fileArrayBuffer), { metadata: { contentType: file.mimetype } });
-                    
-                    // 3. 파일을 공개로 설정하고 URL 가져오기
-                    await storageFile.makePublic();
-                    
-                    const publicUrl = storageFile.publicUrl();
-                    background = {
-                        type: file.mimetype.startsWith('video/') ? 'video' : 'image',
-                        url: publicUrl,
-                    };
-                    console.log(`[8/8] File successfully uploaded. Public URL: ${publicUrl}`);
+                    background = await uploadFileToFirebase(file);
                 } catch (uploadError) {
                     console.error('[ERROR] Error during file download or upload process:', uploadError.message);
-                    if (uploadError.response) {
-                        console.error('Axios file download error response:', uploadError.response.data);
-                    }
                     // 파일 처리 실패 시 기본 배경을 그대로 사용
                 }
             }

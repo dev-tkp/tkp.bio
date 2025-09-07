@@ -1,5 +1,7 @@
 import { db } from './lib/firebase';
 
+const POSTS_PER_PAGE = 10; // 한 번에 가져올 포스트 수
+
 export default async function handler(req, res) {
   console.log(`API Route /api/posts received a ${req.method} request.`);
 
@@ -9,22 +11,41 @@ export default async function handler(req, res) {
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
+  const { cursor } = req.query; // 클라이언트에서 보낸 마지막 포스트의 ID
+
   try {
     console.log("Attempting to query 'posts' collection from Firestore...");
-    const postsCollection = db.collection('posts');
-    const snapshot = await postsCollection.orderBy('createdAt', 'desc').get();
-    
-    console.log(`Firestore query completed. Snapshot empty: ${snapshot.empty}, size: ${snapshot.size}.`);
+    let query = db.collection('posts').orderBy('createdAt', 'desc');
 
-    if (snapshot.empty) {
-      console.log("No documents found. Returning an empty array.");
-      return res.status(200).json([]);
+    if (cursor) {
+      console.log(`Querying with cursor: ${cursor}`);
+      const lastVisibleDoc = await db.collection('posts').doc(cursor).get();
+      if (!lastVisibleDoc.exists) {
+        return res.status(404).json({ error: 'Cursor document not found.' });
+      }
+      query = query.startAfter(lastVisibleDoc);
     }
 
-    const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    
-    console.log(`Successfully mapped ${posts.length} documents. Sending response.`);
-    res.status(200).json(posts);
+    // 다음 페이지가 있는지 확인하기 위해 요청된 개수보다 하나 더 가져옵니다.
+    const snapshot = await query.limit(POSTS_PER_PAGE + 1).get();
+
+    console.log(`Firestore query completed. Fetched ${snapshot.size} documents.`);
+
+    if (snapshot.empty) {
+      console.log("No more documents found. Returning empty response.");
+      return res.status(200).json({ posts: [], nextCursor: null });
+    }
+
+    const hasMore = snapshot.docs.length > POSTS_PER_PAGE;
+    const posts = snapshot.docs
+      .slice(0, POSTS_PER_PAGE)
+      .map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // 다음 쿼리를 위한 커서는 마지막으로 가져온 문서의 ID입니다.
+    const nextCursor = hasMore ? posts[posts.length - 1].id : null;
+
+    console.log(`Successfully mapped ${posts.length} documents. HasMore: ${hasMore}. Next cursor: ${nextCursor}`);
+    res.status(200).json({ posts, nextCursor });
 
   } catch (error) {
     console.error('Error fetching posts from Firestore:', error);

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import './Post.css';
 import ContactModal from './ContactModal.js';
 import Toast from './Toast.js';
@@ -18,7 +18,7 @@ const formatTimestamp = (timestamp) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-function Post({ id, author, profilePic, content, background, createdAt }) {
+const Post = React.forwardRef(({ id, author, profilePic, content, background, createdAt }, ref) => {
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,9 +27,21 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
   const postRef = useRef(null);
   const toastTimeoutRef = useRef(null);
 
+  // App.js에서 무한 스크롤을 위해 전달된 ref와
+  // Post.js 내부의 IntersectionObserver를 위한 ref를 합치기 위한 콜백
+  const setRefs = useCallback(
+    (node) => {
+      // 내부 ref 설정
+      postRef.current = node;
+      // 전달된 ref 설정
+      if (ref) ref(node);
+    },
+    [ref]
+  );
+
   const isLongContent = content.length > CONTENT_MAX_LENGTH;
 
-  // URL 업데이트를 위한 useEffect (모든 포스트에 적용)
+  // IntersectionObserver를 사용하여 포스트가 화면에 보일 때 URL 업데이트 및 비디오 재생을 처리합니다.
   useEffect(() => {
     const currentPostRef = postRef.current;
     if (!currentPostRef) return;
@@ -39,6 +51,16 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
         if (entry.isIntersecting) {
           // 화면에 보이면 URL 업데이트 (history에 쌓지 않음)
           navigate(`/post/${id}`, { replace: true });
+          // 비디오가 있으면 재생
+          if (background?.type === 'video') {
+            videoRef.current?.play();
+          }
+        } else {
+          // 화면에서 벗어나면 비디오 정지 및 시간 리셋
+          if (background?.type === 'video') {
+            videoRef.current?.pause();
+            if (videoRef.current) videoRef.current.currentTime = 0;
+          }
         }
       },
       { threshold: 0.7 } // 70% 이상 보여야 인터섹션으로 간주하여 더 정확하게 판단
@@ -46,30 +68,7 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
 
     observer.observe(currentPostRef);
     return () => observer.unobserve(currentPostRef);
-  }, [id, navigate]);
-
-  // 비디오 제어를 위한 useEffect (비디오 포스트에만 적용)
-  useEffect(() => {
-    const currentPostRef = postRef.current;
-    if (background?.type !== 'video' || !currentPostRef) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          videoRef.current?.play();
-        } else {
-          videoRef.current?.pause();
-          if (videoRef.current) videoRef.current.currentTime = 0;
-        }
-      },
-      { threshold: 0.7 }
-    );
-
-    observer.observe(currentPostRef);
-
-    // 컴포넌트가 언마운트될 때 observer 정리
-    return () => observer.unobserve(currentPostRef);
-  }, [background?.type]);
+  }, [id, navigate, background?.type]);
 
   // 컴포넌트가 언마운트될 때 토스트 타임아웃 정리
   useEffect(() => {
@@ -123,7 +122,7 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
       : content;
 
   return (
-    <div className="post" onClick={handleCollapse} ref={postRef} id={`post-${id}`}>
+    <div className="post" onClick={handleCollapse} ref={setRefs} id={`post-${id}`}>
       {/* 배경 미디어 렌더링 */}
       {background && background.type === 'video' ? (
         <video ref={videoRef} className="post__background" src={background.url} loop muted playsInline />
@@ -163,6 +162,6 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
       />
     </div>
   );
-}
+});
 
 export default Post;
