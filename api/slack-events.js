@@ -1,5 +1,6 @@
 import { db, storage, FieldValue } from './lib/firebase'; // Firestore의 serverTimestamp를 위해 FieldValue를 가져옵니다.
 import axios from 'axios';
+const axios = require('axios/dist/node/axios.cjs');
 import crypto from 'crypto'; // Slack 서명 확인 및 파일 이름 생성을 위해 crypto 모듈 사용
 
 // Vercel의 기본 body-parser를 비활성화합니다. Slack 서명 확인을 위해 원시(raw) 본문이 필요합니다.
