@@ -1,22 +1,4 @@
-import admin from 'firebase-admin';
-
-// Firebase Admin SDK 초기화
-// Vercel 환경에서는 함수가 호출될 때마다 이 코드가 실행될 수 있으므로,
-// admin.apps.length 체크는 매우 중요합니다.
-if (!admin.apps.length) {
-  try {
-    console.log('Initializing Firebase Admin SDK...');
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    console.log('Firebase Admin SDK initialized successfully.');
-  } catch (error) {
-    console.error('Firebase Admin Initialization Error:', error.stack);
-  }
-}
-
-const db = admin.firestore();
+import { db } from './lib/firebase';
 
 export default async function handler(req, res) {
   console.log(`API Route /api/posts received a ${req.method} request.`);
