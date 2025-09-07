@@ -18,37 +18,47 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
 
   const isLongContent = content.length > CONTENT_MAX_LENGTH;
 
+  // URL 업데이트를 위한 useEffect (모든 포스트에 적용)
   useEffect(() => {
     const currentPostRef = postRef.current;
-    // 비디오 포스트가 아니거나, ref가 아직 설정되지 않았다면 아무것도 하지 않음
-    if (background?.type !== 'video' || !currentPostRef) {
-      return;
-    }
+    if (!currentPostRef) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           // 화면에 보이면 URL 업데이트 (history에 쌓지 않음)
           navigate(`/post/${id}`, { replace: true });
-
-          // 화면에 보이면 비디오 재생
-          videoRef.current?.play();
-        } else {
-          // 화면에서 벗어나면 비디오 정지 및 시간 리셋
-          videoRef.current?.pause();
-          if (videoRef.current) {
-            videoRef.current.currentTime = 0;
-          }
         }
       },
       { threshold: 0.7 } // 70% 이상 보여야 인터섹션으로 간주하여 더 정확하게 판단
     );
 
     observer.observe(currentPostRef);
+    return () => observer.unobserve(currentPostRef);
+  }, [id, navigate]);
+
+  // 비디오 제어를 위한 useEffect (비디오 포스트에만 적용)
+  useEffect(() => {
+    const currentPostRef = postRef.current;
+    if (background?.type !== 'video' || !currentPostRef) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          videoRef.current?.play();
+        } else {
+          videoRef.current?.pause();
+          if (videoRef.current) videoRef.current.currentTime = 0;
+        }
+      },
+      { threshold: 0.7 }
+    );
+
+    observer.observe(currentPostRef);
 
     // 컴포넌트가 언마운트될 때 observer 정리
     return () => observer.unobserve(currentPostRef);
-  }, [background?.type, id, navigate]);
+  }, [background?.type]);
 
   // 컴포넌트가 언마운트될 때 토스트 타임아웃 정리
   useEffect(() => {
