@@ -54,7 +54,7 @@ async function getSlackUserInfo(userId) {
 }
 
 // Slack에서 파일을 다운로드하여 Firebase Storage에 업로드하는 헬퍼 함수
-async function uploadFileToFirebase(file) {
+async function uploadFileToFirebase(file, docId) {
   console.log(`[5/8] Attempting to download file from: ${file.url_private_download}`);
   const fileResponse = await fetch(file.url_private_download, {
     headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` }
@@ -64,8 +64,9 @@ async function uploadFileToFirebase(file) {
     throw new Error(`Failed to download file: ${fileResponse.status} ${fileResponse.statusText}`);
   }
 
+  // Cloud Function에서 최적화할 것이므로 원본은 별도 경로에 저장합니다.
   const uniqueFileName = `${Date.now()}-${randomUUID()}-${file.name}`;
-  const destination = `posts/${uniqueFileName}`;
+  const destination = `posts/originals/${uniqueFileName}`;
   const storageFile = storage.file(destination);
 
   console.log(`[6/8] Starting to stream file to Firebase Storage at: ${destination}`);
@@ -73,7 +74,12 @@ async function uploadFileToFirebase(file) {
   // 스트림을 Promise로 감싸서 비동기 작업 완료를 기다립니다.
   await new Promise((resolve, reject) => {
     const writeStream = storageFile.createWriteStream({
-      metadata: { contentType: file.mimetype },
+      metadata: {
+        contentType: file.mimetype,
+        metadata: {
+          firestoreDocId: docId // Firestore 문서 ID를 메타데이터에 추가
+        }
+      },
       public: true, // 업로드와 동시에 파일을 공개로 설정합니다.
     });
 
@@ -178,33 +184,36 @@ export default async function handler(req, res) {
             const { authorName, authorProfilePic } = await getSlackUserInfo(event.user);
 
             const file = event.files && event.files[0];
-            let background = {
-                type: 'image',
-                url: '/assets/post2_bg.gif', // 기본 배경
-            };
-            
-            // 첨부 파일이 있고, 이미지 또는 비디오인 경우 처리
-            if (file && (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/'))) {
-                console.log(`[4/8] File detected. Mimetype: ${file.mimetype}. Processing: ${file.name}`);
-                try {
-                    background = await uploadFileToFirebase(file);
-                } catch (uploadError) {
-                    console.error('[ERROR] Error during file download or upload process:', uploadError.message);
-                    // 파일 처리 실패 시 기본 배경을 그대로 사용
-                }
-            }
 
+            // Firestore에 먼저 문서를 생성하여 ID를 확보합니다.
+            // 배경 정보는 나중에 업데이트합니다.
             const newPost = {
                 author: authorName,
                 profilePic: authorProfilePic,
                 content: event.text || '', // 텍스트가 없는 이미지/비디오만 올릴 경우 대비
                 // Firestore의 서버 시간을 사용하면 시간 동기화 및 쿼리에 유리합니다.
                 createdAt: FieldValue.serverTimestamp(),
-                background: background,
+                background: { // 기본 배경으로 먼저 설정
+                    type: 'image',
+                    url: '/assets/post2_bg.gif',
+                },
             };
+            
+            const postRef = await db.collection('posts').add(newPost);
+            console.log(`Created Firestore document with ID: ${postRef.id}`);
 
-            console.log('Attempting to add new post to Firestore with data:', JSON.stringify(newPost, null, 2));
-            await db.collection('posts').add(newPost);
+            // 파일이 있는 경우, 문서 ID와 함께 업로드 함수를 호출하고 Firestore를 업데이트합니다.
+            if (file && (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/'))) {
+                console.log(`[4/8] File detected. Mimetype: ${file.mimetype}. Processing: ${file.name}`);
+                try {
+                    const uploadedBackground = await uploadFileToFirebase(file, postRef.id);
+                    await postRef.update({ background: uploadedBackground });
+                    console.log(`Updated Firestore doc ${postRef.id} with original file URL.`);
+                } catch (uploadError) {
+                    console.error('[ERROR] Error during file download or upload process:', uploadError.message);
+                    // 파일 처리 실패 시 기본 배경을 그대로 사용하므로 추가 작업 없음.
+                }
+            }
             console.log('Successfully added new post to Firestore.');
         } catch (error) {
             console.error('[ERROR] Error in main post creation logic:', error.stack);
