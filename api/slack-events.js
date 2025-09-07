@@ -28,8 +28,17 @@ export default async function handler(req, res) {
     const requestTimestamp = req.headers['x-slack-request-timestamp'];
     const slackSignature = req.headers['x-slack-signature'];
 
-    if (!slackSigningSecret || !requestTimestamp || !slackSignature) {
-        console.warn('Missing Slack signature headers.');
+    // 어떤 헤더 또는 환경 변수가 누락되었는지 정확히 확인하기 위한 상세 로깅
+    if (!slackSigningSecret) {
+      console.error('CRITICAL: SLACK_SIGNING_SECRET environment variable is not set on Vercel.');
+      // 서버 설정 오류이므로 500 에러를 반환하는 것이 더 적절합니다.
+      return res.status(500).send('Server configuration error.');
+    }
+    if (!requestTimestamp || !slackSignature) {
+        console.warn('Missing Slack signature headers from the request.', {
+          hasTimestamp: !!requestTimestamp,
+          hasSignature: !!slackSignature,
+        });
         return res.status(400).send('Missing Slack signature headers.');
     }
 
