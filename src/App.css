@@ -1,5 +1,5 @@
 .app {
-  height: 100vh;
+  height: 100dvh; /* vh -> dvh로 변경하여 모바일 브라우저 UI에 대응 */
   background-color: black; /* 모바일 기본 배경 */
   display: grid;
   place-items: center;
@@ -8,7 +8,7 @@
 
 .app__videos {
   position: relative;
-  height: 100vh;
+  height: 100dvh; /* vh -> dvh로 변경하여 모바일 브라우저 UI에 대응 */
   width: 100%;
   overflow: scroll;
   scroll-snap-type: y mandatory;

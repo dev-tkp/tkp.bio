@@ -9,8 +9,8 @@ function Toast({ isVisible }) {
 
   return (
     <div className={`toast ${isVisible ? 'visible' : ''}`}>
-      <img src={checkmarkIcon} alt="Success" className="toast-icon" />
       Copied
+      <img src={checkmarkIcon} alt="Success" className="toast-icon" />
     </div>
   );
 }

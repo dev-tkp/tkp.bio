@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Post.css';
 import ContactModal from './ContactModal';
 import Toast from './Toast';
@@ -6,7 +7,8 @@ import Toast from './Toast';
 const CONTENT_MAX_LENGTH = 80;
 const MY_EMAIL = 'tkpark0504@gmail.com';
 
-function Post({ author, profilePic, content, background }) {
+function Post({ id, author, profilePic, content, background, createdAt }) {
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -26,6 +28,9 @@ function Post({ author, profilePic, content, background }) {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          // 화면에 보이면 URL 업데이트 (history에 쌓지 않음)
+          navigate(`/post/${id}`, { replace: true });
+
           // 화면에 보이면 비디오 재생
           videoRef.current?.play();
         } else {
@@ -36,14 +41,14 @@ function Post({ author, profilePic, content, background }) {
           }
         }
       },
-      { threshold: 0.5 } // 50% 이상 보여야 인터섹션으로 간주
+      { threshold: 0.7 } // 70% 이상 보여야 인터섹션으로 간주하여 더 정확하게 판단
     );
 
     observer.observe(currentPostRef);
 
     // 컴포넌트가 언마운트될 때 observer 정리
     return () => observer.unobserve(currentPostRef);
-  }, [background?.type]);
+  }, [background?.type, id, navigate]);
 
   // 컴포넌트가 언마운트될 때 토스트 타임아웃 정리
   useEffect(() => {
@@ -97,7 +102,7 @@ function Post({ author, profilePic, content, background }) {
       : content;
 
   return (
-    <div className="post" onClick={handleCollapse} ref={postRef}>
+    <div className="post" onClick={handleCollapse} ref={postRef} id={`post-${id}`}>
       {/* 배경 미디어 렌더링 */}
       {background && background.type === 'video' ? (
         <video ref={videoRef} className="post__background" src={background.url} loop muted playsInline />
@@ -109,7 +114,10 @@ function Post({ author, profilePic, content, background }) {
       <div className="post__footer" onClick={(e) => e.stopPropagation()}>
         <div className="post__footerAuthor" onClick={openModal}>
           <img src={profilePic} alt={author} className="post__profilePic" />
-          <strong>{author}</strong>
+          <div className="post__authorInfo">
+            <strong>{author}</strong>
+            <span className="post__createdAt">{createdAt}</span>
+          </div>
         </div>
         <div className="post__footerDescription">
           <p>

@@ -3,13 +3,13 @@
   bottom: 30px;
   left: 50%;
   transform: translateX(-50%);
-  background-color: #333;
-  color: white;
+  background-color: #f0f0f0; /* 옅은 회색으로 변경 */
+  color: #000; /* 텍스트 색상을 검은색으로 변경 */
   padding: 10px 20px;
   border-radius: 20px;
   z-index: 1001;
   opacity: 0;
-  transition: opacity 0.8s ease-in-out; /* 2배 느리게 변경 */
+  transition: opacity 1s ease-in-out; /* 천천히 나타나고 사라지도록 수정 */
   pointer-events: none;
   display: flex;
   align-items: center;
@@ -23,5 +23,5 @@
 .toast-icon {
   width: 16px;
   height: 16px;
-  margin-right: 8px;
+  margin-left: 8px; /* 아이콘을 텍스트 오른쪽으로 옮기기 위해 margin-left로 변경 */
 }

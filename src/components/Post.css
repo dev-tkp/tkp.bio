@@ -38,7 +38,8 @@
 .post__footer {
   position: relative;
   z-index: 2;
-  padding: 14px 20px 21px; /* 하단 여백 추가 (14px * 1.5) */
+  /* iPhone 등 하단에 홈 바가 있는 기기를 위한 safe-area 적용 */
+  padding: 14px 20px calc(21px + env(safe-area-inset-bottom));
 }
 
 .post__footerAuthor {
@@ -49,17 +50,29 @@
 }
 
 .post__profilePic {
-  width: 48px; /* 모바일용 크기 (기존 * 1.7) */
-  height: 48px; /* 모바일용 크기 (기존 * 1.7) */
+  width: 38px; /* 모바일용 크기 (48px * 0.8) */
+  height: 38px; /* 모바일용 크기 (48px * 0.8) */
   border-radius: 50%;
   object-fit: cover;
-  margin-right: 14px; /* 모바일용 크기 */
-  border: 2.5px solid white; /* 모바일용 크기 */
+  margin-right: 11px; /* 모바일용 크기 (14px * 0.8) */
+  border: 2px solid white; /* 모바일용 크기 (2.5px * 0.8) */
+}
+
+.post__authorInfo {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .post__footerAuthor strong {
   font-size: 1.2rem; /* 모바일용 크기 */
   font-weight: 600;
+  line-height: 1.2; /* 이름과 날짜 사이 간격 조절 */
+}
+
+.post__createdAt {
+  font-size: 0.85rem;
+  color: #d1d1d1;
 }
 
 .post__footerDescription p {
@@ -81,14 +94,18 @@
 /* 데스크탑 화면(550px 이상)에서 크기 다시 줄이기 */
 @media (min-width: 550px) {
   .post__profilePic {
-    width: 28px;
-    height: 28px;
-    margin-right: 8px;
-    border-width: 1.5px;
+    width: 22px; /* 28px * 0.8 */
+    height: 22px; /* 28px * 0.8 */
+    margin-right: 6px; /* 8px * 0.8 */
+    border-width: 1.2px; /* 1.5px * 0.8 */
   }
 
   .post__footerAuthor strong {
     font-size: 0.7rem;
+  }
+
+  .post__createdAt {
+    font-size: 0.62rem;
   }
 
   .post__footerDescription p,
