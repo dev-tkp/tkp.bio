@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Post.css';
-import ContactModal from './ContactModal';
-import Toast from './Toast';
+import ContactModal from './ContactModal.js';
+import Toast from './Toast.js';
 
 const CONTENT_MAX_LENGTH = 80;
 const MY_EMAIL = 'tkpark0504@gmail.com';

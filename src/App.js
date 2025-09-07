@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
 import { useLocation } from 'react-router-dom';
-import Post from './components/Post';
+import Post from './components/Post.js';
 
 function App() {
   const location = useLocation();
