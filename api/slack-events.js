@@ -93,12 +93,13 @@ export default async function handler(req, res) {
     // 순수하게 사용자가 채널에 보낸 새 메시지만 처리합니다.
     if (event.type === 'message' && (!event.subtype || event.subtype === 'file_share') && !event.bot_id) {
         try {
-            console.log('Processing new message from Slack:', event.text);
+            console.log(`[1/8] Processing new message from Slack: "${event.text}"`);
 
             // Slack API를 사용하여 메시지를 보낸 사용자 정보 가져오기
             let authorName = 'tkpar'; // 기본값
             let authorProfilePic = '/assets/profile_pic.png'; // 기본값
             try {
+              console.log(`[2/8] Attempting to fetch user info for user: ${event.user}`);
               const userInfoResponse = await axios.get('https://slack.com/api/users.info', {
                   headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` },
                   params: { user: event.user }
@@ -106,8 +107,12 @@ export default async function handler(req, res) {
               const slackUser = userInfoResponse.data.user;
               authorName = slackUser.profile.display_name || slackUser.real_name || slackUser.name;
               authorProfilePic = slackUser.profile.image_512 || slackUser.profile.image_original || '/assets/profile_pic.png';
+              console.log(`[3/8] Successfully fetched user info for: ${authorName}`);
             } catch (userError) {
-              console.error('Error fetching Slack user info:', userError);
+              console.error('[ERROR] Error fetching Slack user info:', userError.message);
+              if (userError.response) {
+                console.error('Axios user info error response:', userError.response.data);
+              }
               // 사용자 정보 조회 실패 시 기본값 사용
             }
 
@@ -119,32 +124,39 @@ export default async function handler(req, res) {
 
             // 첨부 파일이 있고, 이미지 또는 비디오인 경우 처리
             if (file && (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/'))) {
-                console.log(`Processing attached file: ${file.name}`);
+                console.log(`[4/8] File detected. Mimetype: ${file.mimetype}. Processing: ${file.name}`);
                 try {
-                    // 1. Slack에서 파일 다운로드 (인증이 필요한 비공개 다운로드 URL 사용)
+                    // 1. Slack에서 파일 다운로드
+                    console.log(`[5/8] Attempting to download file from: ${file.url_private_download}`);
                     const response = await axios.get(file.url_private_download, {
                         headers: { 'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}` },
                         responseType: 'arraybuffer'
                     });
+                    console.log(`[6/8] File downloaded from Slack. Size: ${response.data.length} bytes.`);
                     
-                    // 2. Firebase Storage에 업로드 (storage가 이미 버킷 객체이므로 .bucket() 호출 제거)
+                    // 2. Firebase Storage에 업로드
                     // 파일 이름의 유일성을 보장하기 위해 UUID 추가
                     const uniqueFileName = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
                     const destination = `posts/${uniqueFileName}`;
                     const storageFile = storage.file(destination);
 
+                    console.log(`[7/8] Attempting to upload to Firebase Storage at: ${destination}`);
                     await storageFile.save(response.data, { metadata: { contentType: file.mimetype } });
                     
                     // 3. 파일을 공개로 설정하고 URL 가져오기
                     await storageFile.makePublic();
                     
+                    const publicUrl = storageFile.publicUrl();
                     background = {
                         type: file.mimetype.startsWith('video/') ? 'video' : 'image',
-                        url: storageFile.publicUrl(),
+                        url: publicUrl,
                     };
-                    console.log(`File successfully uploaded to: ${background.url}`);
+                    console.log(`[8/8] File successfully uploaded. Public URL: ${publicUrl}`);
                 } catch (uploadError) {
-                    console.error('Error handling file upload:', uploadError);
+                    console.error('[ERROR] Error during file download or upload process:', uploadError.message);
+                    if (uploadError.response) {
+                        console.error('Axios file download error response:', uploadError.response.data);
+                    }
                     // 파일 처리 실패 시 기본 배경을 그대로 사용
                 }
             }
@@ -158,10 +170,11 @@ export default async function handler(req, res) {
                 background: background,
             };
 
+            console.log('Attempting to add new post to Firestore with data:', JSON.stringify(newPost, null, 2));
             await db.collection('posts').add(newPost);
             console.log('Successfully added new post to Firestore.');
         } catch (error) {
-            console.error('Error saving post to Firestore:', error);
+            console.error('[ERROR] Error in main post creation logic:', error.stack);
         }
     }
   }
