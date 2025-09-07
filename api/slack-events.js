@@ -71,6 +71,9 @@ export default async function handler(req, res) {
 
   // Slack의 URL 인증 요청(challenge)에 응답하기 위한 로직
   if (body && body.type === 'url_verification') {
+    // 디버깅을 위해 수신된 이벤트 전체를 로그로 남깁니다.
+    console.log('Received Slack event body:', JSON.stringify(body, null, 2));
+
     console.log('Responding to Slack URL verification challenge.');
     return res.status(200).json({ challenge: body.challenge });
   }
@@ -81,6 +84,9 @@ export default async function handler(req, res) {
 
   // 실제 이벤트 처리 로직
   if (body.type === 'event_callback') {
+    // 디버깅을 위해 수신된 이벤트 전체를 로그로 남깁니다.
+    console.log('Received Slack event body:', JSON.stringify(body, null, 2));
+
     const { event } = body;
 
     // 봇이 보낸 메시지나, 메시지 수정/삭제 등은 무시하고
