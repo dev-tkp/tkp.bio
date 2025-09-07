@@ -49,9 +49,13 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Error fetching posts from Firestore:', error);
-    res.status(500).json({ 
-      error: 'Internal Server Error while fetching posts.', 
-      details: error.message 
+    // 개발 환경에서는 더 자세한 에러를, 프로덕션에서는 일반적인 메시지를 보냅니다.
+    const isDev = process.env.NODE_ENV === 'development';
+    res.status(500).json({
+      message: 'Internal Server Error while fetching posts.',
+      // Firebase 초기화 실패 등 더 근본적인 원인을 파악하는 데 도움이 될 수 있습니다.
+      error: isDev ? error.message : 'An unexpected error occurred.',
+      stack: isDev ? error.stack : undefined,
     });
   }
 }
