@@ -11,7 +11,7 @@ const os = require("os");
 const path = require("path");
 const fsp = require("fs").promises; // For promise-based fs operations
 const fs = require("fs"); // For stream-based fs operations
-const { pipeline } = require("stream/promises"); // Available in Node.js 16+
+const {pipeline} = require("stream/promises"); // Available in Node.js 16+
 
 // Firebase Admin SDK 초기화
 admin.initializeApp();
@@ -385,7 +385,6 @@ exports.processDeleteQueue = functions
         }
 
         const postDoc = snapshot.docs[0];
-        const postData = postDoc.data();
         const postId = postDoc.id;
 
         console.log(`[DELETE] Found post to delete. ID: ${postId}`);
