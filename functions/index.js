@@ -178,8 +178,8 @@ async function _executePostCreation(event, queueDocRef) {
           console.log(`[BACKGROUND] Compressed video uploaded. URL: ${background.url}`);
         } else if (file.mimetype.startsWith("image/") && !file.mimetype.includes("gif")) {
           console.log(`[BACKGROUND] Compressing image: ${file.name}`);
-          const fBuffer = await fsp.readFile(tempInPath);
-          const compBuffer = await sharp(fBuffer)
+          // 메모리 사용량을 줄이기 위해 파일 버퍼 대신 파일 경로를 직접 전달하여 스트리밍 방식으로 처리합니다.
+          const compBuffer = await sharp(tempInPath)
               .resize({width: 1080, withoutEnlargement: true})
               .webp({quality: 80})
               .toBuffer();
