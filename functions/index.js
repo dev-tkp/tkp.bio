@@ -9,7 +9,9 @@ const ffmpegPath = require("ffmpeg-static");
 const ffmpeg = require("fluent-ffmpeg");
 const os = require("os");
 const path = require("path");
-const fs = require("fs").promises;
+const fsp = require("fs").promises; // For promise-based fs operations
+const fs = require("fs"); // For stream-based fs operations
+const { pipeline } = require("stream/promises"); // Available in Node.js 16+
 
 // Firebase Admin SDK 초기화
 admin.initializeApp();
@@ -50,18 +52,15 @@ async function sendSlackNotification(message) {
 
 /**
  * 동영상 파일을 압축합니다.
- * @param {Buffer} buffer - 원본 동영상 파일 버퍼.
- * @return {Promise<Buffer>} 압축된 동영상 파일 버퍼.
+ * @param {string} inputPath - 원본 동영상 파일의 임시 경로.
+ * @return {Promise<string>} 압축된 동영상 파일의 임시 경로.
  */
-async function compressVideo(buffer) {
+async function compressVideo(inputPath) {
   const rdmId = crypto.randomUUID();
-  const tempInPath = path.join(os.tmpdir(), `input-${rdmId}.mp4`);
   const tempOutPath = path.join(os.tmpdir(), `output-${rdmId}.mp4`);
 
-  await fs.writeFile(tempInPath, buffer);
-
   return new Promise((resolve, reject) => {
-    ffmpeg(tempInPath)
+    ffmpeg(inputPath)
         .outputOptions([
           "-vf", "scale=w=720:h=-2", // 너비 720p로 리사이즈, 높이는 비율 유지
           "-c:v", "libx264", // H.264 코덱 사용
@@ -73,19 +72,15 @@ async function compressVideo(buffer) {
         ])
         .output(tempOutPath)
         .on("end", async () => {
-          try {
-            const compBuffer = await fs.readFile(tempOutPath);
-            await fs.unlink(tempInPath);
-            await fs.unlink(tempOutPath);
-            resolve(compBuffer);
-          } catch (err) {
-            reject(err);
-          }
+          console.log(`[BACKGROUND] FFmpeg finished processing. Output at: ${tempOutPath}`);
+          resolve(tempOutPath);
         })
         .on("error", async (err) => {
+          console.error("[BACKGROUND] FFmpeg error:", err);
           try {
-            await fs.unlink(tempInPath);
-            await fs.unlink(tempOutPath);
+            // 임시 출력 파일이 생성되었을 수 있으므로 삭제 시도
+            await fsp.access(tempOutPath);
+            await fsp.unlink(tempOutPath);
           } catch (e) {/* ignore cleanup errors */}
           reject(err);
         })
@@ -143,102 +138,84 @@ async function _executePostCreation(event, queueDocRef) {
 
   if (file && (file.mimetype.startsWith("image/") ||
     file.mimetype.startsWith("video/"))) {
-    console.log(
-        `[BCKGRND] Processing: ${file.name}, Mime: ${file.mimetype}`,
-    );
+    let tempInPath;
+    let compressedPath;
+    try {
+      // 1. 메모리 문제를 피하기 위해 다운로드 스트림을 임시 파일로 저장합니다.
+      tempInPath = path.join(os.tmpdir(), `input-${crypto.randomUUID()}${path.extname(file.name)}`);
+      const botToken = functions.config().slack.bot_token;
+      const fileRes = await fetch(file.url_private_download, {headers: {Authorization: `Bearer ${botToken}`}});
+      if (!fileRes.ok) throw new Error(`File download failed: ${fileRes.statusText}`);
+      await pipeline(fileRes.body, fs.createWriteStream(tempInPath));
+      console.log(`[BACKGROUND] File downloaded to temp path: ${tempInPath}`);
 
-    const botToken = functions.config().slack.bot_token;
-    const fileRes = await fetch(file.url_private_download, {
-      headers: {Authorization: `Bearer ${botToken}`},
-    });
+      const originalSizeInMB = (await fsp.stat(tempInPath)).size / 1024 / 1024;
+      console.log(`[BACKGROUND] Downloaded file size: ${originalSizeInMB.toFixed(2)} MB.`);
 
-    if (!fileRes.ok) {
-      throw new Error(`File download failed: ${fileRes.statusText}`);
-    }
+      let unqFilename;
+      let dest;
+      let fileRef;
 
-    const fBuffer = await fileRes.buffer();
-    const originalSizeInMB = (fBuffer.length / 1024 / 1024).toFixed(2);
-    console.log(`[BCKGRND] downloaded. Orgnl size: ${originalSizeInMB} MB.`);
+      // 2. 파일 타입에 따라 분기 처리
+      if (file.mimetype.startsWith("video/")) {
+        console.log(`[BACKGROUND] Compressing video: ${file.name}`);
+        compressedPath = await compressVideo(tempInPath);
+        const compressedSizeInMB = (await fsp.stat(compressedPath)).size / 1024 / 1024;
+        console.log(`[BACKGROUND] Video compressed. New size: ${compressedSizeInMB.toFixed(2)} MB.`);
 
-    // 파일 타입에 따라 분기 처리
-    if (file.mimetype.startsWith("video/")) {
-      // 비디오 압축
-      console.log(`[BACKGROUND] Compressing video: ${file.name}`);
-      const compBuffer = await compressVideo(fBuffer);
+        unqFilename = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
+        dest = `posts/${unqFilename}`;
+        await storage.upload(compressedPath, {
+          destination: dest,
+          public: true,
+          metadata: {contentType: "video/mp4", cacheControl: "public, max-age=31536000, immutable"},
+        });
 
-      const compressedSizeInMB = (
-        compBuffer.length / 1024 / 1024
-      ).toFixed(2);
-      console.log(`[BCKGRND] Video compressed. Size: ${compressedSizeInMB}MB`);
+        fileRef = storage.file(dest);
+        background = {type: "video", url: fileRef.publicUrl()};
+        console.log(`[BACKGROUND] Compressed video uploaded. URL: ${background.url}`);
+      } else if (file.mimetype.startsWith("image/") && !file.mimetype.includes("gif")) {
+        console.log(`[BACKGROUND] Compressing image: ${file.name}`);
+        const fBuffer = await fsp.readFile(tempInPath);
+        const compBuffer = await sharp(fBuffer)
+            .resize({width: 1080, withoutEnlargement: true})
+            .webp({quality: 80})
+            .toBuffer();
 
-      const unqFilename = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
-      const dest = `posts/${unqFilename}`;
-      const fileRef = storage.file(dest);
+        const compressedSizeInMB = (compBuffer.length / 1024 / 1024).toFixed(2);
+        console.log(`[BACKGROUND] Image compressed. New size: ${compressedSizeInMB} MB.`);
 
-      await fileRef.save(compBuffer, {
-        metadata: {
-          contentType: "video/mp4",
-          cacheControl: "public, max-age=31536000, immutable",
-        },
-      });
-      await fileRef.makePublic();
+        const origName = file.name.substring(0, file.name.lastIndexOf("."));
+        unqFilename = `${Date.now()}-${crypto.randomUUID()}-${origName}.webp`;
+        dest = `posts/${unqFilename}`;
+        fileRef = storage.file(dest);
 
-      background = {type: "video", url: fileRef.publicUrl()};
-      console.log(
-          `[BCKGRND] Compressed video uploaded. URL: ${background.url}`,
-      );
-    } else if (
-      file.mimetype.startsWith("image/") && !file.mimetype.includes("gif")
-    ) {
-      // 이미지 압축 (GIF 제외)
-      console.log(`[BACKGROUND] Compressing image: ${file.name}`);
-      const compBuffer = await sharp(fBuffer)
-          .resize({width: 1080, withoutEnlargement: true})
-          .webp({quality: 80})
-          .toBuffer();
+        await fileRef.save(compBuffer, {
+          metadata: {contentType: "image/webp", cacheControl: "public, max-age=31536000, immutable"},
+        });
+        await fileRef.makePublic();
 
-      const compressedSizeInMB = (
-        compBuffer.length / 1024 / 1024
-      ).toFixed(2);
-      console.log(`[BCKGRND] Image compressed. Size: ${compressedSizeInMB}MB`);
+        background = {type: "image", url: fileRef.publicUrl()};
+        console.log(`[BACKGROUND] Compressed image uploaded. URL: ${background.url}`);
+      } else {
+        // GIF는 원본 그대로 업로드
+        console.log(`[BACKGROUND] Uploading original GIF: ${file.name}`);
+        unqFilename = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
+        dest = `posts/${unqFilename}`;
+        await storage.upload(tempInPath, {
+          destination: dest,
+          public: true,
+          metadata: {contentType: file.mimetype, cacheControl: "public, max-age=31536000, immutable"},
+        });
 
-      const origName = file.name.substring(0, file.name.lastIndexOf("."));
-      const rdmUuid = crypto.randomUUID();
-      const unqFilename = `${Date.now()}-${rdmUuid}-${origName}.webp`;
-      const dest = `posts/${unqFilename}`;
-      const fileRef = storage.file(dest);
-
-      await fileRef.save(compBuffer, {
-        metadata: {
-          contentType: "image/webp",
-          cacheControl: "public, max-age=31536000, immutable",
-        },
-      });
-      await fileRef.makePublic();
-
-      background = {type: "image", url: fileRef.publicUrl()};
-      console.log(
-          `[BCKGRND] Compressed image uploaded. URL: ${background.url}`,
-      );
-    } else {
-      // GIF는 원본 그대로 업로드
-      const type = file.mimetype.startsWith("video/") ? "video" : "image";
-      console.log(`[BACKGROUND] Uploading original ${type}: ${file.name}`);
-
-      const unqFilename = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
-      const dest = `posts/${unqFilename}`;
-      const fileRef = storage.file(dest);
-
-      await fileRef.save(fBuffer, {
-        metadata: {
-          contentType: file.mimetype,
-          cacheControl: "public, max-age=31536000, immutable",
-        },
-      });
-      await fileRef.makePublic();
-
-      background = {type: type, url: fileRef.publicUrl()};
-      console.log(`Original ${type} uploaded. URL: ${background.url}`);
+        fileRef = storage.file(dest);
+        background = {type: "image", url: fileRef.publicUrl()};
+        console.log(`[BACKGROUND] Original GIF uploaded. URL: ${background.url}`);
+      }
+    } finally {
+      // 3. 모든 작업 후 임시 파일 정리
+      if (tempInPath) await fsp.unlink(tempInPath).catch((e) => console.warn(`Cleanup failed for ${tempInPath}`, e));
+      if (compressedPath) await fsp.unlink(compressedPath).catch((e) => console.warn(`Cleanup failed for ${compressedPath}`, e));
     }
   }
 
@@ -249,7 +226,6 @@ async function _executePostCreation(event, queueDocRef) {
     content: event.text || "",
     createdAt: FieldValue.serverTimestamp(),
     background: background,
-    slackMessageTs: event.ts, // 포스트와 슬랙 메시지를 연결하기 위한 타임스탬프
   };
 
   await db.collection("posts").add(postData);
@@ -382,65 +358,5 @@ exports.reprocessFailedPost = functions
         res.status(500).send(
             `Failed to reprocess docId ${docId}. Error: ${error.message}`,
         );
-      }
-    });
-
-// 'delete_queue' 컬렉션에 문서가 생성될 때 포스트를 삭제하는 함수
-exports.processDeleteQueue = functions
-    .region("asia-northeast3")
-    .runWith(runtimeOpts)
-    .firestore.document("delete_queue/{docId}")
-    .onCreate(async (snap, context) => {
-      const {slackMessageTs} = snap.data();
-      const {docId} = context.params;
-
-      console.log(`[DELETE] Processing delete request for message ts: ${slackMessageTs}`);
-
-      try {
-        // 1. slackMessageTs를 사용하여 삭제할 포스트를 찾습니다.
-        const postsRef = db.collection("posts");
-        const snapshot = await postsRef.where("slackMessageTs", "==", slackMessageTs).limit(1).get();
-
-        if (snapshot.empty) {
-          console.warn(`[DELETE] No post found with slackMessageTs: ${slackMessageTs}. Ignoring.`);
-          await snap.ref.delete(); // 큐에서 해당 작업 삭제
-          return;
-        }
-
-        const postDoc = snapshot.docs[0];
-        const postData = postDoc.data();
-        const postId = postDoc.id;
-
-        console.log(`[DELETE] Found post to delete. ID: ${postId}`);
-
-        // 2. Firebase Storage에서 연결된 미디어 파일을 삭제합니다.
-        if (postData.background && postData.background.url) {
-          const bucketName = storage.name;
-          const prefix = `https://storage.googleapis.com/${bucketName}/`;
-          if (postData.background.url.startsWith(prefix)) {
-            const filePath = decodeURIComponent(postData.background.url.substring(prefix.length));
-            console.log(`[DELETE] Deleting file from Storage: ${filePath}`);
-            try {
-              await storage.file(filePath).delete();
-              console.log(`[DELETE] Successfully deleted file: ${filePath}`);
-            } catch (storageError) {
-              if (storageError.code === 404) {
-                console.warn(`[DELETE] File not found in Storage, but proceeding: ${filePath}`);
-              } else {
-                throw storageError; // 다른 스토리지 에러는 재시도를 위해 throw
-              }
-            }
-          }
-        }
-
-        // 3. Firestore에서 포스트 문서를 삭제합니다.
-        await db.collection("posts").doc(postId).delete();
-        console.log(`[DELETE] Successfully deleted post document from Firestore: ${postId}`);
-
-        await snap.ref.delete(); // 성공적으로 처리된 큐 문서 삭제
-      } catch (error) {
-        console.error(`[DELETE ERROR] Failed to process delete queue doc ${docId}:`, error);
-        // 실패 시 큐 문서를 업데이트하여 수동 확인/재처리가 가능하도록 합니다.
-        await snap.ref.update({status: "failed", error: error.message});
       }
     });
