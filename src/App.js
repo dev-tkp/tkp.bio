@@ -19,8 +19,9 @@ function App() {
 
   // --- 가상화를 위한 콜백 ---
   const handlePostVisible = useCallback((index) => {
-    if (activePostIndex !== index) setActivePostIndex(index);
-  }, [activePostIndex]);
+    // 함수형 업데이트를 사용하여 activePostIndex 의존성을 제거
+    setActivePostIndex(prevIndex => prevIndex !== index ? index : prevIndex);
+  }, []);
 
   // 포스트 데이터를 가져오는 함수
   const fetchMorePosts = useCallback(async () => {
