@@ -14,10 +14,12 @@ export default async function handler(req, res) {
   const RENDER_AHEAD = 5;
 
   try {
+    console.log(`[Initial Load] Fetching target post with ID: ${id}`);
     const docRef = db.collection('posts').doc(id);
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
+      console.error(`[Initial Load] Target post with ID: ${id} not found in Firestore.`);
       return res.status(404).json({ error: "Post not found." });
     }
 
@@ -41,6 +43,7 @@ export default async function handler(req, res) {
     const newerPosts = newerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     const olderPosts = olderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+    console.log(`[Initial Load] Found ${newerPosts.length} newer posts and ${olderPosts.length} older posts (including target).`);
     const combinedPosts = [...newerPosts, ...olderPosts];
     const initialPostIndex = newerPosts.length;
 
