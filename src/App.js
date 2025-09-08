@@ -15,26 +15,20 @@ function App() {
   const [hasMore, setHasMore] = useState(true); // 더 불러올 포스트가 있는지
   const [lastPostCursor, setLastPostCursor] = useState(null); // 페이지네이션 커서
   const [activePostIndex, setActivePostIndex] = useState(0); // 현재 활성화된 포스트 인덱스
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
 
   // --- 가상화를 위한 콜백 ---
   const handlePostVisible = useCallback((index) => {
-    setActivePostIndex(index);
-  }, []);
+    if (activePostIndex !== index) setActivePostIndex(index);
+  }, [activePostIndex]);
 
   // 포스트 데이터를 가져오는 함수
-  const fetchPosts = useCallback(async (cursor) => {
-    const isInitialLoad = !cursor;
-    if (isInitialLoad) {
-      setLoading(true);
-    } else {
-      setIsFetchingMore(true);
-    }
+  const fetchMorePosts = useCallback(async () => {
+    if (isFetchingMore || !hasMore || !lastPostCursor) return;
 
-    let url = '/api/posts?limit=10';
-    if (cursor) {
-      const cursorString = JSON.stringify(cursor.createdAt);
-      url += `&cursor=${encodeURIComponent(cursorString)}`;
-    }
+    setIsFetchingMore(true);
+    const cursorString = JSON.stringify(lastPostCursor.createdAt);
+    const url = `/api/posts?limit=10&cursor=${encodeURIComponent(cursorString)}`;
 
     try {
       const response = await fetch(url);
@@ -43,22 +37,63 @@ function App() {
       if (newPosts.length < 10) {
         setHasMore(false);
       }
-      setPosts(prev => isInitialLoad ? newPosts : [...prev, ...newPosts]);
+      setPosts(prev => [...prev, ...newPosts]);
       if (newPosts.length > 0) {
         setLastPostCursor(newPosts[newPosts.length - 1]);
       }
     } catch (error) {
-      console.error("Failed to fetch posts:", error);
+      console.error("Failed to fetch more posts:", error);
     } finally {
-      setLoading(false);
       setIsFetchingMore(false);
     }
-  }, []);
+  }, [isFetchingMore, hasMore, lastPostCursor]);
 
-  // 초기 포스트 로딩
+  // 초기 포스트 로딩 및 URL 변경 감지
   useEffect(() => {
-    fetchPosts(null);
-  }, [fetchPosts]);
+    const postId = location.pathname.split('/post/')[1];
+
+    const fetchInitialData = async () => {
+      setLoading(true);
+      setInitialScrollDone(false); // Reset scroll flag on new load
+      let url = postId ? `/api/post-initial-load?id=${postId}` : '/api/posts?limit=10';
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          // If direct load fails (e.g., 404), fall back to the main feed.
+          if (postId) {
+            console.warn(`Post ${postId} not found, loading main feed.`);
+            const fallbackResponse = await fetch('/api/posts?limit=10');
+            const fallbackPosts = await fallbackResponse.json();
+            setPosts(fallbackPosts);
+            if (fallbackPosts.length > 0) setLastPostCursor(fallbackPosts[fallbackPosts.length - 1]);
+            setHasMore(fallbackPosts.length === 10);
+          } else {
+            throw new Error(`Failed to fetch: ${response.statusText}`);
+          }
+        } else {
+          const data = await response.json();
+          if (postId) {
+            setPosts(data.posts);
+            setActivePostIndex(data.initialPostIndex);
+            if (data.posts.length > 0) setLastPostCursor(data.posts[data.posts.length - 1]);
+            setHasMore(true); // Assume more posts exist in both directions
+          } else {
+            setPosts(data);
+            if (data.length > 0) setLastPostCursor(data[data.length - 1]);
+            setHasMore(data.length === 10);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch initial posts:", error);
+        setPosts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitialData();
+  }, [location.pathname]);
 
   // 무한 스크롤을 위한 IntersectionObserver 설정
   const observer = useRef();
@@ -67,24 +102,27 @@ function App() {
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
-        fetchPosts(lastPostCursor);
+        fetchMorePosts();
       }
     });
     if (node) observer.current.observe(node);
-  }, [isFetchingMore, hasMore, lastPostCursor, fetchPosts]);
+  }, [isFetchingMore, hasMore, fetchMorePosts]);
 
-  // TODO: URL을 통해 특정 포스트로 직접 접근하는 기능은 가상화 도입으로 인해 로직 수정이 필요합니다.
-  // 현재는 비활성화하며, 추후 개선이 필요합니다.
-  // useEffect(() => {
-  //   const postId = location.pathname.split('/post/')[1];
-  //   if (postId && posts.length > 0) {
-  //     const postIndex = posts.findIndex(p => p.id === postId);
-  //     if (postIndex > -1 && postIndex !== activePostIndex) {
-  //       setActivePostIndex(postIndex);
-  //       // 스크롤 로직은 activePostIndex를 기반으로 한 다른 useEffect에서 처리될 수 있습니다.
-  //     }
-  //   }
-  // }, [location.pathname, posts, activePostIndex]);
+  // URL로 직접 접근 시 해당 포스트로 스크롤하는 기능
+  useEffect(() => {
+    if (!loading && !initialScrollDone) {
+      const activePostId = posts[activePostIndex]?.id;
+      if (activePostId && appVideosRef.current) {
+        const postRef = postRefs.current[activePostId];
+        if (postRef) {
+          setTimeout(() => {
+            appVideosRef.current.scrollTo({ top: postRef.offsetTop, behavior: 'auto' });
+          }, 0);
+        }
+      }
+      setInitialScrollDone(true);
+    }
+  }, [loading, initialScrollDone, posts, activePostIndex]);
 
   if (loading && posts.length === 0) {
     return <div className="app-loading">Loading posts...</div>;
