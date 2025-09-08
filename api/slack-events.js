@@ -135,5 +135,35 @@ export default async function handler(req, res) {
         console.error('[ERROR] Failed to queue delete request:', error.stack);
       }
     }
+
+    // :x: (엑스) 이모지 반응을 제거하여 포스트를 복원하는 로직
+    if (event.type === 'reaction_removed' && event.reaction === 'x') {
+      try {
+        if (event.item.type !== 'message') {
+          return;
+        }
+
+        console.log(`[RESTORE] Received restore request for message ts: ${event.item.ts}`);
+
+        const postsRef = db.collection("posts");
+        const snapshot = await postsRef.where("slackMessageTs", "==", event.item.ts).limit(1).get();
+
+        if (snapshot.empty) {
+          console.warn(`[RESTORE] No post found with slackMessageTs: ${event.item.ts}. Nothing to restore.`);
+          return;
+        }
+
+        const postDoc = snapshot.docs[0];
+        await postDoc.ref.update({
+          deleted: false,
+          // deletedAt 필드를 삭제하여 복원 상태를 명확히 합니다.
+          deletedAt: FieldValue.delete(),
+        });
+
+        console.log(`[RESTORE] Successfully restored post: ${postDoc.id}`);
+      } catch (error) {
+        console.error('[ERROR] Failed to process restore request:', error.stack);
+      }
+    }
   }
 }

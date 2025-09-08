@@ -16,7 +16,9 @@ export default async function handler(req, res) {
 
     console.log(`Querying posts with limit: ${postsLimit} and cursor: ${cursor}`);
 
-    let query = db.collection('posts').orderBy('createdAt', 'desc');
+    let query = db.collection('posts')
+      .where("deleted", "!=", true) // 삭제된 포스트는 제외
+      .orderBy('createdAt', 'desc');
 
     if (cursor) {
       try {

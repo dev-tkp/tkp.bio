@@ -390,29 +390,13 @@ exports.processDeleteQueue = functions
 
         console.log(`[DELETE] Found post to delete. ID: ${postId}`);
 
-        // 2. Firebase Storage에서 연결된 미디어 파일을 삭제합니다.
-        if (postData.background && postData.background.url) {
-          const bucketName = storage.name;
-          const prefix = `https://storage.googleapis.com/${bucketName}/`;
-          if (postData.background.url.startsWith(prefix)) {
-            const filePath = decodeURIComponent(postData.background.url.substring(prefix.length));
-            console.log(`[DELETE] Deleting file from Storage: ${filePath}`);
-            try {
-              await storage.file(filePath).delete();
-              console.log(`[DELETE] Successfully deleted file: ${filePath}`);
-            } catch (storageError) {
-              if (storageError.code === 404) {
-                console.warn(`[DELETE] File not found in Storage, but proceeding: ${filePath}`);
-              } else {
-                throw storageError; // 다른 스토리지 에러는 재시도를 위해 throw
-              }
-            }
-          }
-        }
-
-        // 3. Firestore에서 포스트 문서를 삭제합니다.
-        await db.collection("posts").doc(postId).delete();
-        console.log(`[DELETE] Successfully deleted post document from Firestore: ${postId}`);
+        // 2. 포스트를 'soft delete' 처리합니다. (실제 삭제 대신 'deleted' 플래그 설정)
+        // 이렇게 하면 나중에 복원할 수 있습니다. 미디어 파일은 삭제하지 않습니다.
+        await db.collection("posts").doc(postId).update({
+          deleted: true,
+          deletedAt: FieldValue.serverTimestamp(),
+        });
+        console.log(`[DELETE] Successfully soft-deleted post: ${postId}`);
 
         await snap.ref.delete(); // 성공적으로 처리된 큐 문서 삭제
       } catch (error) {

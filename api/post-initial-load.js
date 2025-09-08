@@ -19,18 +19,26 @@ export default async function handler(req, res) {
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
-      console.error(`[Initial Load] Target post with ID: ${id} not found in Firestore.`);
+      console.warn(`[Initial Load] Target post with ID: ${id} not found in Firestore.`);
+      return res.status(404).json({ error: "Post not found." });
+    }
+
+    // soft-delete된 포스트로 직접 접근하는 것을 막습니다.
+    if (docSnap.data().deleted === true) {
+      console.warn(`[Initial Load] Attempted to access a deleted post. ID: ${id}`);
       return res.status(404).json({ error: "Post not found." });
     }
 
     // 대상 포스트보다 최신 포스트(더 이전 시간)를 가져옵니다.
     const newerPostsQuery = db.collection('posts')
+      .where("deleted", "!=", true)
       .orderBy('createdAt', 'desc')
       .endBefore(docSnap)
       .limitToLast(RENDER_AHEAD);
 
     // 대상 포스트 및 그보다 오래된 포스트를 가져옵니다.
     const olderPostsQuery = db.collection('posts')
+      .where("deleted", "!=", true)
       .orderBy('createdAt', 'desc')
       .startAt(docSnap)
       .limit(RENDER_AHEAD + 1); // +1 for the target post itself
