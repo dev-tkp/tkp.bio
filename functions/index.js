@@ -138,84 +138,91 @@ async function _executePostCreation(event, queueDocRef) {
 
   if (file && (file.mimetype.startsWith("image/") ||
     file.mimetype.startsWith("video/"))) {
-    let tempInPath;
-    let compressedPath;
+    // Isolate media processing in a try...catch block to prevent it from halting post creation.
     try {
-      // 1. 메모리 문제를 피하기 위해 다운로드 스트림을 임시 파일로 저장합니다.
-      tempInPath = path.join(os.tmpdir(), `input-${crypto.randomUUID()}${path.extname(file.name)}`);
-      const botToken = functions.config().slack.bot_token;
-      const fileRes = await fetch(file.url_private_download, {headers: {Authorization: `Bearer ${botToken}`}});
-      if (!fileRes.ok) throw new Error(`File download failed: ${fileRes.statusText}`);
-      await pipeline(fileRes.body, fs.createWriteStream(tempInPath));
-      console.log(`[BACKGROUND] File downloaded to temp path: ${tempInPath}`);
+      let tempInPath;
+      let compressedPath;
+      try {
+        // 1. Download the file stream to a temporary location to avoid memory issues.
+        tempInPath = path.join(os.tmpdir(), `input-${crypto.randomUUID()}${path.extname(file.name)}`);
+        const botToken = functions.config().slack.bot_token;
+        const fileRes = await fetch(file.url_private_download, {headers: {Authorization: `Bearer ${botToken}`}});
+        if (!fileRes.ok) throw new Error(`File download failed: ${fileRes.statusText}`);
+        await pipeline(fileRes.body, fs.createWriteStream(tempInPath));
+        console.log(`[BACKGROUND] File downloaded to temp path: ${tempInPath}`);
 
-      const originalSizeInMB = (await fsp.stat(tempInPath)).size / 1024 / 1024;
-      console.log(`[BACKGROUND] Downloaded file size: ${originalSizeInMB.toFixed(2)} MB.`);
+        const originalSizeInMB = (await fsp.stat(tempInPath)).size / 1024 / 1024;
+        console.log(`[BACKGROUND] Downloaded file size: ${originalSizeInMB.toFixed(2)} MB.`);
 
-      let unqFilename;
-      let dest;
-      let fileRef;
+        let unqFilename;
+        let dest;
+        let fileRef;
 
-      // 2. 파일 타입에 따라 분기 처리
-      if (file.mimetype.startsWith("video/")) {
-        console.log(`[BACKGROUND] Compressing video: ${file.name}`);
-        compressedPath = await compressVideo(tempInPath);
-        const compressedSizeInMB = (await fsp.stat(compressedPath)).size / 1024 / 1024;
-        console.log(`[BACKGROUND] Video compressed. New size: ${compressedSizeInMB.toFixed(2)} MB.`);
+        // 2. Process the file based on its type.
+        if (file.mimetype.startsWith("video/")) {
+          console.log(`[BACKGROUND] Compressing video: ${file.name}`);
+          compressedPath = await compressVideo(tempInPath);
+          const compressedSizeInMB = (await fsp.stat(compressedPath)).size / 1024 / 1024;
+          console.log(`[BACKGROUND] Video compressed. New size: ${compressedSizeInMB.toFixed(2)} MB.`);
 
-        unqFilename = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
-        dest = `posts/${unqFilename}`;
-        await storage.upload(compressedPath, {
-          destination: dest,
-          public: true,
-          metadata: {contentType: "video/mp4", cacheControl: "public, max-age=31536000, immutable"},
-        });
+          unqFilename = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
+          dest = `posts/${unqFilename}`;
+          await storage.upload(compressedPath, {
+            destination: dest,
+            public: true,
+            metadata: {contentType: "video/mp4", cacheControl: "public, max-age=31536000, immutable"},
+          });
 
-        fileRef = storage.file(dest);
-        background = {type: "video", url: fileRef.publicUrl()};
-        console.log(`[BACKGROUND] Compressed video uploaded. URL: ${background.url}`);
-      } else if (file.mimetype.startsWith("image/") && !file.mimetype.includes("gif")) {
-        console.log(`[BACKGROUND] Compressing image: ${file.name}`);
-        const fBuffer = await fsp.readFile(tempInPath);
-        const compBuffer = await sharp(fBuffer)
-            .resize({width: 1080, withoutEnlargement: true})
-            .webp({quality: 80})
-            .toBuffer();
+          fileRef = storage.file(dest);
+          background = {type: "video", url: fileRef.publicUrl()};
+          console.log(`[BACKGROUND] Compressed video uploaded. URL: ${background.url}`);
+        } else if (file.mimetype.startsWith("image/") && !file.mimetype.includes("gif")) {
+          console.log(`[BACKGROUND] Compressing image: ${file.name}`);
+          const fBuffer = await fsp.readFile(tempInPath);
+          const compBuffer = await sharp(fBuffer)
+              .resize({width: 1080, withoutEnlargement: true})
+              .webp({quality: 80})
+              .toBuffer();
 
-        const compressedSizeInMB = (compBuffer.length / 1024 / 1024).toFixed(2);
-        console.log(`[BACKGROUND] Image compressed. New size: ${compressedSizeInMB} MB.`);
+          const compressedSizeInMB = (compBuffer.length / 1024 / 1024).toFixed(2);
+          console.log(`[BACKGROUND] Image compressed. New size: ${compressedSizeInMB} MB.`);
 
-        const origName = file.name.substring(0, file.name.lastIndexOf("."));
-        unqFilename = `${Date.now()}-${crypto.randomUUID()}-${origName}.webp`;
-        dest = `posts/${unqFilename}`;
-        fileRef = storage.file(dest);
+          const origName = file.name.substring(0, file.name.lastIndexOf("."));
+          unqFilename = `${Date.now()}-${crypto.randomUUID()}-${origName}.webp`;
+          dest = `posts/${unqFilename}`;
+          fileRef = storage.file(dest);
 
-        await fileRef.save(compBuffer, {
-          metadata: {contentType: "image/webp", cacheControl: "public, max-age=31536000, immutable"},
-        });
-        await fileRef.makePublic();
+          await fileRef.save(compBuffer, {
+            metadata: {contentType: "image/webp", cacheControl: "public, max-age=31536000, immutable"},
+          });
+          await fileRef.makePublic();
 
-        background = {type: "image", url: fileRef.publicUrl()};
-        console.log(`[BACKGROUND] Compressed image uploaded. URL: ${background.url}`);
-      } else {
-        // GIF는 원본 그대로 업로드
-        console.log(`[BACKGROUND] Uploading original GIF: ${file.name}`);
-        unqFilename = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
-        dest = `posts/${unqFilename}`;
-        await storage.upload(tempInPath, {
-          destination: dest,
-          public: true,
-          metadata: {contentType: file.mimetype, cacheControl: "public, max-age=31536000, immutable"},
-        });
+          background = {type: "image", url: fileRef.publicUrl()};
+          console.log(`[BACKGROUND] Compressed image uploaded. URL: ${background.url}`);
+        } else {
+          // Upload GIFs as-is.
+          console.log(`[BACKGROUND] Uploading original GIF: ${file.name}`);
+          unqFilename = `${Date.now()}-${crypto.randomUUID()}-${file.name}`;
+          dest = `posts/${unqFilename}`;
+          await storage.upload(tempInPath, {
+            destination: dest,
+            public: true,
+            metadata: {contentType: file.mimetype, cacheControl: "public, max-age=31536000, immutable"},
+          });
 
-        fileRef = storage.file(dest);
-        background = {type: "image", url: fileRef.publicUrl()};
-        console.log(`[BACKGROUND] Original GIF uploaded. URL: ${background.url}`);
+          fileRef = storage.file(dest);
+          background = {type: "image", url: fileRef.publicUrl()};
+          console.log(`[BACKGROUND] Original GIF uploaded. URL: ${background.url}`);
+        }
+      } finally {
+        // 3. Clean up temporary files after all operations.
+        if (tempInPath) await fsp.unlink(tempInPath).catch((e) => console.warn(`Cleanup failed for ${tempInPath}`, e));
+        if (compressedPath) await fsp.unlink(compressedPath).catch((e) => console.warn(`Cleanup failed for ${compressedPath}`, e));
       }
-    } finally {
-      // 3. 모든 작업 후 임시 파일 정리
-      if (tempInPath) await fsp.unlink(tempInPath).catch((e) => console.warn(`Cleanup failed for ${tempInPath}`, e));
-      if (compressedPath) await fsp.unlink(compressedPath).catch((e) => console.warn(`Cleanup failed for ${compressedPath}`, e));
+    } catch (mediaError) {
+      console.error("[BACKGROUND MEDIA ERROR] Failed to process media. Post will be created with default background.", mediaError);
+      await sendSlackNotification(`:warning: 미디어 처리 실패: \`${file.name}\`. 포스트는 기본 배경으로 생성됩니다. 에러: ${mediaError.message}`);
+      // The 'background' variable is already set to its default value, so we can just proceed.
     }
   }
 
