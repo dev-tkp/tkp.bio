@@ -67,7 +67,14 @@ export default async function handler(req, res) {
   }
   // --- 서명 확인 완료 ---
 
-  const body = JSON.parse(rawBody); // 이제 안전하게 본문을 파싱하여 사용합니다.
+  let body;
+  try {
+    body = JSON.parse(rawBody); // 이제 안전하게 본문을 파싱하여 사용합니다.
+  } catch (e) {
+    console.error("Failed to parse request body as JSON:", e);
+    // Slack은 이 응답을 받지 못할 수 있지만, 서버 로그에는 남습니다.
+    return res.status(400).send("Invalid JSON body.");
+  }
 
   // Slack의 URL 인증 요청(challenge)에 응답하기 위한 로직
   if (body && body.type === 'url_verification') {
