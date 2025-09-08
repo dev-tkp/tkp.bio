@@ -111,5 +111,29 @@ export default async function handler(req, res) {
             console.error('[ERROR] Failed to queue Slack event in Firestore:', error.stack);
         }
     }
+
+    // :x: (엑스) 이모지 반응으로 포스트를 삭제하는 로직
+    // 'x'는 :x: 이모지의 이름입니다.
+    if (event.type === 'reaction_added' && event.reaction === 'x') {
+      try {
+        // 반응이 달린 아이템이 메시지인지 확인
+        if (event.item.type !== 'message') {
+          return;
+        }
+
+        console.log(`[DELETE QUEUE] Queuing delete request for message ts: ${event.item.ts}`);
+
+        const deleteQueueData = {
+          slackMessageTs: event.item.ts,
+          requestedBy: event.user, // 삭제를 요청한 사용자
+          receivedAt: FieldValue.serverTimestamp(),
+        };
+
+        await db.collection('delete_queue').add(deleteQueueData);
+        console.log('[DELETE QUEUE] Successfully queued delete request in Firestore.');
+      } catch (error) {
+        console.error('[ERROR] Failed to queue delete request:', error.stack);
+      }
+    }
   }
 }
