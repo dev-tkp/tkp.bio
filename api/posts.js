@@ -1,4 +1,5 @@
 import { db } from './lib/firebase';
+import { Timestamp } from 'firebase-admin/firestore';
 
 export default async function handler(req, res) {
   console.log(`API Route /api/posts received a ${req.method} request.`);
@@ -10,14 +11,31 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log("Attempting to query 'posts' collection from Firestore...");
-    const postsCollection = db.collection('posts');
-    const snapshot = await postsCollection.orderBy('createdAt', 'desc').get();
-    
+    const { cursor, limit = '10' } = req.query;
+    const postsLimit = parseInt(limit, 10);
+
+    console.log(`Querying posts with limit: ${postsLimit} and cursor: ${cursor}`);
+
+    let query = db.collection('posts').orderBy('createdAt', 'desc');
+
+    if (cursor) {
+      try {
+        // The cursor is the stringified JSON of the last post's createdAt timestamp object
+        const { _seconds, _nanoseconds } = JSON.parse(cursor);
+        const lastVisibleTimestamp = new Timestamp(_seconds, _nanoseconds);
+        query = query.startAfter(lastVisibleTimestamp);
+      } catch (e) {
+        console.error("Invalid cursor format:", cursor, e);
+        return res.status(400).json({ error: "Invalid cursor format." });
+      }
+    }
+
+    const snapshot = await query.limit(postsLimit).get();
+
     console.log(`Firestore query completed. Snapshot empty: ${snapshot.empty}, size: ${snapshot.size}.`);
 
     if (snapshot.empty) {
-      console.log("No documents found. Returning an empty array.");
+      console.log("No more documents found. Returning an empty array.");
       return res.status(200).json([]);
     }
 

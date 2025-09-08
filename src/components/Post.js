@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Post.css';
 import ContactModal from './ContactModal';
@@ -18,7 +18,7 @@ const formatTimestamp = (timestamp) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-function Post({ id, author, profilePic, content, background, createdAt }) {
+const Post = React.forwardRef(({ id, author, profilePic, content, background, createdAt }, ref) => {
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,6 +26,19 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
   const videoRef = useRef(null);
   const postRef = useRef(null);
   const toastTimeoutRef = useRef(null);
+
+  // 컴포넌트 내부에서 사용하는 ref와 부모로부터 전달받은 ref를 모두 설정하기 위한 콜백
+  const setRefs = useCallback(
+    (node) => {
+      // 내부 로직을 위한 ref
+      postRef.current = node;
+      // 부모로부터 전달된 ref (함수 또는 객체일 수 있음)
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        ref.current = node;
+      }
+    }, [ref]);
 
   const isLongContent = content.length > CONTENT_MAX_LENGTH;
 
@@ -123,7 +136,7 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
       : content;
 
   return (
-    <div className="post" onClick={handleCollapse} ref={postRef} id={`post-${id}`}>
+    <div className="post" onClick={handleCollapse} ref={setRefs} id={`post-${id}`}>
       {/* 배경 미디어 렌더링 */}
       {background && background.type === 'video' ? (
         <video ref={videoRef} className="post__background" src={background.url} loop muted playsInline />
@@ -163,6 +176,6 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
       />
     </div>
   );
-}
+});
 
 export default Post;
