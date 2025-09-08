@@ -32,9 +32,10 @@ export default async function handler(req, res) {
     // 대상 포스트보다 최신 포스트(더 이전 시간)를 가져옵니다.
     const newerPostsQuery = db.collection('posts')
       .where("deleted", "==", false)
-      .orderBy('createdAt', 'desc')
-      .endBefore(docSnap)
-      .limitToLast(RENDER_AHEAD);
+      // 쿼리 방향을 뒤집어 안정성을 높입니다.
+      .orderBy('createdAt', 'asc')
+      .startAfter(docSnap)
+      .limit(RENDER_AHEAD);
 
     // 대상 포스트 및 그보다 오래된 포스트를 가져옵니다.
     const olderPostsQuery = db.collection('posts')
@@ -48,7 +49,10 @@ export default async function handler(req, res) {
       olderPostsQuery.get(),
     ]);
 
-    const newerPosts = newerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // 오름차순으로 가져온 최신 포스트 배열을 다시 뒤집어 시간순으로 맞춥니다.
+    const newerPosts = newerSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .reverse();
     const olderPosts = olderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     console.log(`[Initial Load] Found ${newerPosts.length} newer posts and ${olderPosts.length} older posts (including target).`);
