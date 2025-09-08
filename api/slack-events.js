@@ -108,8 +108,17 @@ export default async function handler(req, res) {
             // 이 문서는 Firebase Cloud Function에 의해 비동기적으로 처리됩니다.
             console.log(`[1/2] Queuing new message from Slack for background processing: "${event.text}"`);
             
+            // 전체 event 객체 대신, 백그라운드 함수에 꼭 필요한 데이터만 선별합니다.
+            // 이렇게 하면 데이터 크기를 줄이고, 예기치 않은 직렬화 오류를 방지할 수 있습니다.
+            const simplifiedEvent = {
+              user: event.user,
+              text: event.text || "",
+              files: event.files || [],
+              ts: event.ts,
+            };
+
             const queueData = {
-                slackEvent: event,
+                slackEvent: simplifiedEvent, // 정제된 이벤트 객체를 저장합니다.
                 receivedAt: FieldValue.serverTimestamp(), // 작업 추적을 위한 수신 시간
                 status: 'pending', // 작업 상태
             };
