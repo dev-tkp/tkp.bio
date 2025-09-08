@@ -9,11 +9,30 @@ const MY_EMAIL = 'tkpark0504@gmail.com';
 
 // Firestore Timestamp 객체를 'YYYY-MM-DD HH:MM' 형식으로 변환하는 헬퍼 함수
 const formatTimestamp = (timestamp) => {
-  if (!timestamp || !timestamp.toDate) {
-    // timestamp가 유효하지 않거나, 이미 문자열인 경우 그대로 반환
+  // Handle cases where timestamp is null, undefined, or already a string.
+  if (!timestamp || typeof timestamp === 'string') {
     return timestamp;
   }
-  const d = timestamp.toDate();
+
+  let d;
+  // Case 1: Firestore Timestamp object from server-side rendering or direct SDK use.
+  if (typeof timestamp.toDate === 'function') {
+    d = timestamp.toDate();
+  }
+  // Case 2: Plain object from JSON serialization (from API).
+  else if (typeof timestamp._seconds === 'number') {
+    d = new Date(timestamp._seconds * 1000 + (timestamp._nanoseconds || 0) / 1000000);
+  }
+  // Case 3: Potentially a Date object already.
+  else if (timestamp instanceof Date) {
+    d = timestamp;
+  }
+  // If it's none of the above, we can't format it.
+  else {
+    console.warn("Invalid timestamp format received:", timestamp);
+    return 'Invalid Date';
+  }
+
   const pad = (n) => (n < 10 ? '0' + n : n);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
