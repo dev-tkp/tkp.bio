@@ -168,13 +168,13 @@ const Post = React.forwardRef(({ id, author, profilePic, content, background, cr
 
       {/* 하단 정보 영역 클릭 시 이벤트 전파를 막아, 의도치 않은 축소를 방지합니다. */}
       <div className="post__footer" onClick={(e) => e.stopPropagation()}>
-        <div className="post__footerAuthor" onClick={openModal}>
+        <button className="post__footerAuthor" onClick={openModal}>
           <img src={profilePic} alt={author} className="post__profilePic" />
           <div className="post__authorInfo">
             <strong>{author}</strong>
             <span className="post__createdAt">{formatTimestamp(createdAt)}</span>
           </div>
-        </div>
+        </button>
         <div className="post__footerDescription">
           <p>
             {displayedContent}

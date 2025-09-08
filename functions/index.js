@@ -226,6 +226,7 @@ async function _executePostCreation(event, queueDocRef) {
     content: event.text || "",
     createdAt: FieldValue.serverTimestamp(),
     background: background,
+    deleted: false, // 포스트 생성 시 기본적으로 삭제되지 않은 상태로 설정
     slackMessageTs: event.ts, // 포스트와 슬랙 메시지를 연결하기 위한 타임스탬프
   };
 

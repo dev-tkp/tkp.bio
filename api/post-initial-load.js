@@ -31,14 +31,14 @@ export default async function handler(req, res) {
 
     // 대상 포스트보다 최신 포스트(더 이전 시간)를 가져옵니다.
     const newerPostsQuery = db.collection('posts')
-      .where("deleted", "!=", true)
+      .where("deleted", "==", false)
       .orderBy('createdAt', 'desc')
       .endBefore(docSnap)
       .limitToLast(RENDER_AHEAD);
 
     // 대상 포스트 및 그보다 오래된 포스트를 가져옵니다.
     const olderPostsQuery = db.collection('posts')
-      .where("deleted", "!=", true)
+      .where("deleted", "==", false)
       .orderBy('createdAt', 'desc')
       .startAt(docSnap)
       .limit(RENDER_AHEAD + 1); // +1 for the target post itself

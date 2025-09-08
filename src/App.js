@@ -16,6 +16,7 @@ function App() {
   const [lastPostCursor, setLastPostCursor] = useState(null); // 페이지네이션 커서
   const [activePostIndex, setActivePostIndex] = useState(0); // 현재 활성화된 포스트 인덱스
   const [initialScrollDone, setInitialScrollDone] = useState(false);
+  const preloadLinkRef = useRef(null);
 
   // --- 가상화를 위한 콜백 ---
   const handlePostVisible = useCallback((index) => {
@@ -127,20 +128,32 @@ function App() {
 
   // --- Media Preloading Logic ---
   useEffect(() => {
+    // Clean up the previous preload link
+    if (preloadLinkRef.current) {
+      document.head.removeChild(preloadLinkRef.current);
+      preloadLinkRef.current = null;
+    }
+
     const nextPostIndex = activePostIndex + 1;
     if (nextPostIndex < posts.length) {
       const nextPost = posts[nextPostIndex];
       if (nextPost.background?.url) {
-        // This gives the browser a hint to start fetching the next asset.
         const link = document.createElement('link');
         link.rel = 'preload';
         link.as = nextPost.background.type === 'video' ? 'video' : 'image';
         link.href = nextPost.background.url;
         document.head.appendChild(link);
-        // The link tag can be removed in a cleanup function, but modern browsers
-        // handle preloaded resources efficiently, making manual cleanup optional.
+        preloadLinkRef.current = link; // Store the new link element
       }
     }
+
+    // The cleanup function will run when the component unmounts
+    return () => {
+      if (preloadLinkRef.current) {
+        document.head.removeChild(preloadLinkRef.current);
+        preloadLinkRef.current = null;
+      }
+    };
   }, [activePostIndex, posts]);
 
   if (loading && posts.length === 0) {
