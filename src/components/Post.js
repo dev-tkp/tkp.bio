@@ -45,7 +45,7 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
     );
 
     observer.observe(currentPostRef);
-    return () => observer.unobserve(currentPostRef);
+    return () => observer.disconnect();
   }, [id, navigate]);
 
   // 비디오 제어를 위한 useEffect (비디오 포스트에만 적용)
@@ -68,7 +68,7 @@ function Post({ id, author, profilePic, content, background, createdAt }) {
     observer.observe(currentPostRef);
 
     // 컴포넌트가 언마운트될 때 observer 정리
-    return () => observer.unobserve(currentPostRef);
+    return () => observer.disconnect();
   }, [background?.type]);
 
   // 컴포넌트가 언마운트될 때 토스트 타임아웃 정리
