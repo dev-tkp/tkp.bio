@@ -18,7 +18,7 @@ const formatTimestamp = (timestamp) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-const Post = React.forwardRef(({ id, author, profilePic, content, background, createdAt }, ref) => {
+const Post = React.forwardRef(({ id, author, profilePic, content, background, createdAt, index, onVisible }, ref) => {
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,7 +42,7 @@ const Post = React.forwardRef(({ id, author, profilePic, content, background, cr
 
   const isLongContent = content.length > CONTENT_MAX_LENGTH;
 
-  // URL 업데이트를 위한 useEffect (모든 포스트에 적용)
+  // URL 업데이트 및 활성 포스트 추적을 위한 useEffect (모든 포스트에 적용)
   useEffect(() => {
     const currentPostRef = postRef.current;
     if (!currentPostRef) return;
@@ -50,8 +50,11 @@ const Post = React.forwardRef(({ id, author, profilePic, content, background, cr
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          // 화면에 보이면 URL 업데이트 (history에 쌓지 않음)
+          // 화면에 보이면 URL 업데이트 및 부모 컴포넌트에 알림
           navigate(`/post/${id}`, { replace: true });
+          if (onVisible) {
+            onVisible(index);
+          }
         }
       },
       { threshold: 0.7 } // 70% 이상 보여야 인터섹션으로 간주하여 더 정확하게 판단
@@ -59,7 +62,7 @@ const Post = React.forwardRef(({ id, author, profilePic, content, background, cr
 
     observer.observe(currentPostRef);
     return () => observer.disconnect();
-  }, [id, navigate]);
+  }, [id, navigate, index, onVisible]);
 
   // 비디오 제어를 위한 useEffect (비디오 포스트에만 적용)
   useEffect(() => {
