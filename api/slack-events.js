@@ -19,6 +19,9 @@ async function buffer(readable) {
 }
 
 export default async function handler(req, res) {
+  // 함수가 호출되었는지 확인하기 위한 최상위 로그
+  console.log(`[slack-events] Received a ${req.method} request at ${new Date().toISOString()}`);
+
   const reqBuffer = await buffer(req);
   const rawBody = reqBuffer.toString('utf8');
 
