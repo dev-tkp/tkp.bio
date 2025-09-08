@@ -125,6 +125,24 @@ function App() {
     }
   }, [loading, initialScrollDone, posts, activePostIndex]);
 
+  // --- Media Preloading Logic ---
+  useEffect(() => {
+    const nextPostIndex = activePostIndex + 1;
+    if (nextPostIndex < posts.length) {
+      const nextPost = posts[nextPostIndex];
+      if (nextPost.background?.url) {
+        // This gives the browser a hint to start fetching the next asset.
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = nextPost.background.type === 'video' ? 'video' : 'image';
+        link.href = nextPost.background.url;
+        document.head.appendChild(link);
+        // The link tag can be removed in a cleanup function, but modern browsers
+        // handle preloaded resources efficiently, making manual cleanup optional.
+      }
+    }
+  }, [activePostIndex, posts]);
+
   if (loading && posts.length === 0) {
     return <div className="app-loading">Loading posts...</div>;
   }

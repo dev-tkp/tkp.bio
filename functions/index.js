@@ -175,10 +175,12 @@ async function _executePostCreation(event, queueDocRef) {
       const dest = `posts/${unqFilename}`;
       const fileRef = storage.file(dest);
 
-      await fileRef.save(
-          compBuffer,
-          {metadata: {contentType: "video/mp4"}},
-      );
+      await fileRef.save(compBuffer, {
+        metadata: {
+          contentType: "video/mp4",
+          cacheControl: "public, max-age=31536000, immutable",
+        },
+      });
       await fileRef.makePublic();
 
       background = {type: "video", url: fileRef.publicUrl()};
@@ -206,10 +208,12 @@ async function _executePostCreation(event, queueDocRef) {
       const dest = `posts/${unqFilename}`;
       const fileRef = storage.file(dest);
 
-      await fileRef.save(
-          compBuffer,
-          {metadata: {contentType: "image/webp"}},
-      );
+      await fileRef.save(compBuffer, {
+        metadata: {
+          contentType: "image/webp",
+          cacheControl: "public, max-age=31536000, immutable",
+        },
+      });
       await fileRef.makePublic();
 
       background = {type: "image", url: fileRef.publicUrl()};
@@ -225,10 +229,12 @@ async function _executePostCreation(event, queueDocRef) {
       const dest = `posts/${unqFilename}`;
       const fileRef = storage.file(dest);
 
-      await fileRef.save(
-          fBuffer,
-          {metadata: {contentType: file.mimetype}},
-      );
+      await fileRef.save(fBuffer, {
+        metadata: {
+          contentType: file.mimetype,
+          cacheControl: "public, max-age=31536000, immutable",
+        },
+      });
       await fileRef.makePublic();
 
       background = {type: type, url: fileRef.publicUrl()};
